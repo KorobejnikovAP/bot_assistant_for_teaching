@@ -3,6 +3,7 @@ import datetime
 from .base import BaseModel
 from sqlalchemy.types import BigInteger, VARCHAR, DATE
 from sqlalchemy import Column
+from sqlalchemy.orm import relationship
 
 class User(BaseModel):
 
@@ -12,6 +13,7 @@ class User(BaseModel):
     user_id = Column(BigInteger, unique=True, nullable=False, primary_key=True)
     #telegram username
     username = Column(VARCHAR(32), unique=False, nullable=True)
+    homeworks = relationship("HomeWork", back_populates="author")
 
     reg_date = Column(DATE, default=datetime.date.today())
     upd_date = Column(DATE, onupdate=datetime.date.today())

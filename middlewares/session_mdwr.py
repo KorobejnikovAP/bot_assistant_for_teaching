@@ -5,9 +5,9 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 class DbSessionMiddleware(BaseMiddleware):
-    def __init__(self, async_engine: AsyncEngine):
+    def __init__(self, session_maker: sessionmaker):
         super().__init__()
-        self.acync_engine = async_engine
+        self.session_maker = session_maker
 
     async def __call__(
             self,
@@ -16,5 +16,5 @@ class DbSessionMiddleware(BaseMiddleware):
             data: Dict[str, Any],
     ) -> Any:
         #async with self.session_pool() as session:
-        data["db_engine"] = self.acync_engine
+        data["session_maker"] = self.session_maker
         return await handler(event, data)

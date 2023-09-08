@@ -8,10 +8,11 @@ class Actions(StatesGroup):
     waiting_for_select_role = State()
     waiting_for_text = State()
     waiting_for_upload_hw = State()
+    end = State()
 
-router = Router()
+start_router = Router()
 
-@router.message(Command("start"))
+@start_router.message(Command("start"))
 async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
     kb = [
