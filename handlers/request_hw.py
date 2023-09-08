@@ -1,9 +1,9 @@
 from aiogram import Router, F, Bot
 from aiogram.filters import Command
-from aiogram.types import Message, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
+from aiogram.types import Message, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, BufferedInputFile
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from .start_comand import CoachActions
+from .start_comand import CoachActions, StudentActions
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
@@ -99,25 +99,64 @@ async def coach_upload_hw(message: Message, state: FSMContext, session_maker: se
     await message.answer(text="Вы загрузили домашку")
 
 
-#@request_router.message(
-#    F.text == "Ученик",
-#    CoachActions.waiting_for_select_role,
-#)
-#async def coach_menu(message: Message, state: FSMContext):
-#    state.update_data(role="ученик")
-#    kb = [
-#        [
-#            KeyboardButton(text="Получить д.з"),
-#            KeyboardButton(text="Загрузить д.з"),
-#        ]
-#    ]
-#    keyboard = ReplyKeyboardMarkup(
-#        keyboard=kb,
-#        resize_keyboard=True
-#    )
-#    await message.answer(
-#        text="Выберите дейтвие:", 
-#        reply_markup=keyboard
-#    )
-#    await state.set_state(CoachActions.choosing_action)
-#    
+
+#хэндлеры для ученика 
+
+@request_router.message(
+    F.text == "Ученик",
+    StudentActions.waiting_for_select_role,
+)
+async def student_menu(message: Message, state: FSMContext):
+    state.update_data(role="ученик")
+    kb = [
+        [
+            KeyboardButton(text="Получить д.з"),
+            KeyboardButton(text="Загрузить д.з"),
+        ]
+    ]
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=kb,
+        resize_keyboard=True
+    )
+    await message.answer(
+        text="Выберите дейтвие:", 
+        reply_markup=keyboard
+    )
+    await state.set_state(StudentActions.student_waiting_for_text_action)
+
+
+@request_router.message(
+    F.text == "Получить д.з",
+    StudentActions.student_waiting_for_text_action
+)
+async def student_select_action(message: Message, state: FSMContext, session_maker: sessionmaker):
+    
+    kb = []
+
+    async with session_maker.begin() as session:
+        homeworks = (await session.scalars(select(HomeWork))).all()
+        for hw in homeworks:
+            kb.append(KeyboardButton(text=hw.topic))
+
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=[kb],
+        resize_keyboard=True
+    )
+
+    await message.answer(text="Выберете тему:", reply_markup=keyboard)
+    await state.set_state(StudentActions.student_waiting_for_select_theme)
+
+
+@request_router.message(
+    F.text,
+    StudentActions.student_waiting_for_select_theme
+)
+async def student_select_theme(message: Message, state: FSMContext, session_maker: sessionmaker):
+    
+    theme = message.text
+    async with session_maker.begin() as session:
+        homework = (await session.scalars(select(HomeWork).where(HomeWork.topic == theme))).one()
+        await message.answer(text=f"Описание: {homework.description}")
+        await message.answer_photo(BufferedInputFile(homework.photo, filename="image from buffer.jpg"))
+
+    await state.set_state(StudentActions.student_waiting_for_text_action)
