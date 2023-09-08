@@ -7,6 +7,8 @@ from aiogram.fsm.state import State, StatesGroup
 class Actions(StatesGroup):
     waiting_for_select_role = State()
     waiting_for_text = State()
+    waiting_for_topic = State()
+    waiting_for_description = State()
     waiting_for_upload_hw = State()
     end = State()
 

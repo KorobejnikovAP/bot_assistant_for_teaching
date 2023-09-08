@@ -12,6 +12,7 @@ class HomeWork(BaseModel):
     hw_id = Column(Integer, primary_key=True, nullable=False, autoincrement=True)
     author_id = Column(BigInteger, ForeignKey("users.user_id"))
     author = relationship("User", back_populates="homeworks")
+    topic = Column(VARCHAR(50))
     description = Column(TEXT)
     photo = Column(BYTEA)
 
