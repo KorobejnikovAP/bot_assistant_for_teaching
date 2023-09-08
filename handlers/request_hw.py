@@ -3,7 +3,7 @@ from aiogram.filters import Command
 from aiogram.types import Message, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from .start_comand import Actions
+from .start_comand import CoachActions
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
@@ -17,7 +17,7 @@ request_router = Router()
 
 @request_router.message(
     F.text == "Преподаватель",
-    Actions.waiting_for_select_role,
+    CoachActions.waiting_for_select_role,
 )
 async def coach_menu(message: Message, state: FSMContext, session_maker: sessionmaker):
     user = User(
@@ -27,7 +27,7 @@ async def coach_menu(message: Message, state: FSMContext, session_maker: session
 
     #Пользователь добавляется в базу, если его ещё там нет
     async with session_maker.begin() as session:
-        #if not session.execute(select(User).where(User == user)):
+        if len((await session.scalars(select(User).where(User.user_id == user.user_id))).all()) == 0:
             session.add(user)
         
     kb = [
@@ -39,44 +39,44 @@ async def coach_menu(message: Message, state: FSMContext, session_maker: session
 
     await message.answer(text="Выберите дейтвие:", reply_markup=keyboard) 
     state.update_data(role="преподаватель")
-    await state.set_state(Actions.waiting_for_text)
+    await state.set_state(CoachActions.waiting_for_text_action)
 
 
 @request_router.message(
     F.text == "Добавить новое д.з",
-    Actions.waiting_for_text,
+    CoachActions.waiting_for_text_action,
 )
 async def coach_upload_hw(message: Message, state: FSMContext):
     
     await message.answer(text="Напишите тему задания", reply_markup=ReplyKeyboardRemove())
-    await state.set_state(Actions.waiting_for_topic)
+    await state.set_state(CoachActions.waiting_for_topic)
 
 
 @request_router.message(
     F.text,
-    Actions.waiting_for_topic,
+    CoachActions.waiting_for_topic,
 )
 async def coach_upload_hw(message: Message, state: FSMContext, session_maker: sessionmaker):
 
     await state.update_data(topic=message.text)
     await message.answer(text="Опишите задание (вы сможете прикрепить файл на следующем шаге)")
-    await state.set_state(Actions.waiting_for_description)
+    await state.set_state(CoachActions.waiting_for_description)
 
 
 @request_router.message(
     F.text,
-    Actions.waiting_for_description,
+    CoachActions.waiting_for_description,
 )
 async def coach_upload_hw(message: Message, state: FSMContext, session_maker: sessionmaker):
 
     await state.update_data(description=message.text)
     await message.answer(text="Загрузите файл")
-    await state.set_state(Actions.waiting_for_upload_hw)
+    await state.set_state(CoachActions.waiting_for_upload_hw)
 
 
 @request_router.message(
     #F.photo,
-    Actions.waiting_for_upload_hw,
+    CoachActions.waiting_for_upload_hw,
 )
 async def coach_upload_hw(message: Message, state: FSMContext, session_maker: sessionmaker, bot:Bot):
     file_id = message.photo[-1].file_id
@@ -95,13 +95,13 @@ async def coach_upload_hw(message: Message, state: FSMContext, session_maker: se
 
     async with session_maker.begin() as session:
         session.add(hw)
-    await state.set_state(Actions.end)
+    await state.set_state(CoachActions.end)
     await message.answer(text="Вы загрузили домашку")
 
 
 #@request_router.message(
 #    F.text == "Ученик",
-#    Actions.waiting_for_select_role,
+#    CoachActions.waiting_for_select_role,
 #)
 #async def coach_menu(message: Message, state: FSMContext):
 #    state.update_data(role="ученик")
@@ -119,5 +119,5 @@ async def coach_upload_hw(message: Message, state: FSMContext, session_maker: se
 #        text="Выберите дейтвие:", 
 #        reply_markup=keyboard
 #    )
-#    await state.set_state(Actions.choosing_action)
+#    await state.set_state(CoachActions.choosing_action)
 #    

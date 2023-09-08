@@ -4,13 +4,25 @@ from aiogram.types import Message, KeyboardButton, ReplyKeyboardMarkup
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
+#состояния всех пользователей
 class Actions(StatesGroup):
     waiting_for_select_role = State()
-    waiting_for_text = State()
+
+#состояния преподавателя
+class CoachActions(Actions):
+    waiting_for_text_action = State()
     waiting_for_topic = State()
     waiting_for_description = State()
     waiting_for_upload_hw = State()
     end = State()
+
+#состояния ученика
+class StudentActions(Actions):
+    student_waiting_for_text_action = State()
+    student_waiting_for_select_theme = State()
+    student_waiting_for_upload_hw = State()
+    student_end = State()
+
 
 start_router = Router()
 
@@ -32,4 +44,4 @@ async def cmd_start(message: Message, state: FSMContext):
         "Привет! Выбери свою роль)",
         reply_markup=keyboard
     )
-    await state.set_state(Actions.waiting_for_select_role)
+    await state.set_state(CoachActions.waiting_for_select_role)
