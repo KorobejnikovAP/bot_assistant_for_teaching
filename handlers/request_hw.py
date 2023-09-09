@@ -8,9 +8,9 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
 from sqlalchemy import select
-
 from db import User, HomeWork
     
+
 roles = ["Преподаватель", "Ученик"]
 request_router = Router()
 
@@ -38,7 +38,7 @@ async def coach_menu(message: Message, state: FSMContext, session_maker: session
     keyboard = ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
 
     await message.answer(text="Выберите дейтвие:", reply_markup=keyboard) 
-    state.update_data(role="преподаватель")
+    await state.update_data(role="преподаватель")
     await state.set_state(CoachActions.waiting_for_text_action)
 
 
@@ -46,17 +46,16 @@ async def coach_menu(message: Message, state: FSMContext, session_maker: session
     F.text == "Добавить новое д.з",
     CoachActions.waiting_for_text_action,
 )
-async def coach_upload_hw(message: Message, state: FSMContext):
-    
+async def coach_write_topic(message: Message, state: FSMContext):
     await message.answer(text="Напишите тему задания", reply_markup=ReplyKeyboardRemove())
     await state.set_state(CoachActions.waiting_for_topic)
 
 
 @request_router.message(
-    F.text,
+    F.text[0] != '/',
     CoachActions.waiting_for_topic,
 )
-async def coach_upload_hw(message: Message, state: FSMContext, session_maker: sessionmaker):
+async def coach_write_description(message: Message, state: FSMContext, session_maker: sessionmaker):
 
     await state.update_data(topic=message.text)
     await message.answer(text="Опишите задание (вы сможете прикрепить файл на следующем шаге)")
@@ -64,10 +63,10 @@ async def coach_upload_hw(message: Message, state: FSMContext, session_maker: se
 
 
 @request_router.message(
-    F.text,
+    F.text[0] != '/',
     CoachActions.waiting_for_description,
 )
-async def coach_upload_hw(message: Message, state: FSMContext, session_maker: sessionmaker):
+async def coach_upload_file(message: Message, state: FSMContext, session_maker: sessionmaker):
 
     await state.update_data(description=message.text)
     await message.answer(text="Загрузите файл")
@@ -75,11 +74,12 @@ async def coach_upload_hw(message: Message, state: FSMContext, session_maker: se
 
 
 @request_router.message(
-    #F.photo,
+    F.content_type,
     CoachActions.waiting_for_upload_hw,
 )
-async def coach_upload_hw(message: Message, state: FSMContext, session_maker: sessionmaker, bot:Bot):
-    file_id = message.photo[-1].file_id
+async def coach_end_upload_hw(message: Message, state: FSMContext, session_maker: sessionmaker, bot:Bot):
+    if message.photo: file_id = message.photo[-1].file_id
+    elif message.document: file_id = message.document.file_id
     file = await bot.get_file(file_id)
     file_path = file.file_path
     new_photo = (await bot.download_file(file_path)).read()
@@ -95,7 +95,7 @@ async def coach_upload_hw(message: Message, state: FSMContext, session_maker: se
 
     async with session_maker.begin() as session:
         session.add(hw)
-    await state.set_state(CoachActions.end)
+    await state.clear()
     await message.answer(text="Вы загрузили домашку")
 
 
@@ -107,7 +107,7 @@ async def coach_upload_hw(message: Message, state: FSMContext, session_maker: se
     StudentActions.waiting_for_select_role,
 )
 async def student_menu(message: Message, state: FSMContext):
-    state.update_data(role="ученик")
+    await state.update_data(role="ученик")
     kb = [
         [
             KeyboardButton(text="Получить д.з"),
@@ -148,7 +148,7 @@ async def student_select_action(message: Message, state: FSMContext, session_mak
 
 
 @request_router.message(
-    F.text,
+    F.text[0] != '/',
     StudentActions.student_waiting_for_select_theme
 )
 async def student_select_theme(message: Message, state: FSMContext, session_maker: sessionmaker):
@@ -157,6 +157,6 @@ async def student_select_theme(message: Message, state: FSMContext, session_make
     async with session_maker.begin() as session:
         homework = (await session.scalars(select(HomeWork).where(HomeWork.topic == theme))).one()
         await message.answer(text=f"Описание: {homework.description}")
-        await message.answer_photo(BufferedInputFile(homework.photo, filename="image from buffer.jpg"))
+        await message.answer_document(BufferedInputFile(homework.photo, filename="file"))
 
-    await state.set_state(StudentActions.student_waiting_for_text_action)
+    await state.clear()
