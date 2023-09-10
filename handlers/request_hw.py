@@ -136,10 +136,10 @@ async def student_select_action(message: Message, state: FSMContext, session_mak
     async with session_maker.begin() as session:
         homeworks = (await session.scalars(select(HomeWork))).all()
         for hw in homeworks:
-            kb.append(KeyboardButton(text=hw.topic))
+            kb.append([KeyboardButton(text=hw.topic)])
 
     keyboard = ReplyKeyboardMarkup(
-        keyboard=[kb],
+        keyboard=kb,
         resize_keyboard=True
     )
 

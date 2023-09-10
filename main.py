@@ -35,7 +35,8 @@ async def main():
 
     #создание бд и пула сессий
     async_engine = create_async_engine(postgres_url)
-    await proceed_schemas(async_engine, BaseModel.metadata)
+    #Делегировано alembic
+    #await proceed_schemas(async_engine, BaseModel.metadata)
     session_maker = get_session_maker(async_engine)
     
     #подключение мидлварей и роутеров 
