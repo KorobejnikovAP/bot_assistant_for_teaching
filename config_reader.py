@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     db_name: SecretStr
     db_port: SecretStr
 
+    api_id: SecretStr
+    api_hash: SecretStr
+
     # Вложенный класс с дополнительными указаниями для настроек
     class Config:
         # Имя файла, откуда будут прочитаны данные 

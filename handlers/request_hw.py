@@ -7,7 +7,14 @@ from .start_comand import CoachActions, StudentActions
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 
-from sqlalchemy import select
+from telethon import TelegramClient
+from telethon.tl.functions.users import GetFullUserRequest
+
+from config_reader import config
+
+import re
+
+from sqlalchemy import select, update
 from db import User, HomeWork
     
 
@@ -33,6 +40,7 @@ async def coach_menu(message: Message, state: FSMContext, session_maker: session
     kb = [
         [
             KeyboardButton(text="Добавить новое д.з"),
+            KeyboardButton(text="Добавить ученика"),
         ]
     ]
     keyboard = ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
@@ -49,6 +57,56 @@ async def coach_menu(message: Message, state: FSMContext, session_maker: session
 async def coach_write_topic(message: Message, state: FSMContext):
     await message.answer(text="Напишите тему задания", reply_markup=ReplyKeyboardRemove())
     await state.set_state(CoachActions.waiting_for_topic)
+
+
+@request_router.message(
+    F.text == "Добавить ученика",
+    CoachActions.waiting_for_text_action,
+)
+async def coach_write_nick(message: Message, state: FSMContext):
+    await message.answer(
+        text="Укажите никнейм ученика в телеграмме \n в формате @username:",
+        reply_markup=ReplyKeyboardRemove()
+    )
+    await state.set_state(CoachActions.waiting_for_nick)
+
+
+@request_router.message(
+    CoachActions.waiting_for_nick
+)
+async def coach_add_student(message: Message, state: FSMContext, session_maker: sessionmaker):
+    username = message.text
+    client = await TelegramClient(
+        'bot',
+        config.api_id.get_secret_value(),
+        config.api_hash.get_secret_value()
+    ).start(bot_token=config.bot_token.get_secret_value())
+    
+    async with client as ses:
+        user = await ses(GetFullUserRequest(username))
+
+    new_user = User(
+                user_id = user.full_user.id,
+                username = username,
+                coach_id = message.from_user.id
+            )
+
+    async with session_maker.begin() as session:
+        qs = await session.scalars(select(User).where(User.user_id == new_user.user_id))
+        check_user = qs.one()
+        if not check_user:
+            session.add(new_user)
+            await message.answer(text="Вы добавили ученика")
+        elif check_user.coach_id == None:
+            await message.answer(text="Вы добавили ученика")
+            await session.execute(
+                update(User)
+                .where(User.user_id == user.full_user.id)
+                .values(coach_id=message.from_user.id)
+                .execution_options(synchronize_session=None)
+            )
+        else:
+            await message.answer(text="У этого ученика уже есть учитель!")
 
 
 @request_router.message(
@@ -134,7 +192,8 @@ async def student_select_action(message: Message, state: FSMContext, session_mak
     kb = []
 
     async with session_maker.begin() as session:
-        homeworks = (await session.scalars(select(HomeWork))).all()
+        user = (await session.scalars(select(User).where(User.user_id == message.from_user.id))).one()
+        homeworks = (await session.scalars(select(HomeWork).where(HomeWork.author_id == user.coach_id))).all()
         for hw in homeworks:
             kb.append([KeyboardButton(text=hw.topic)])
 
