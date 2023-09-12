@@ -11,7 +11,7 @@ class User(BaseModel):
 
     user_id = Column(BigInteger, unique=True, nullable=False, primary_key=True)
     username = Column(VARCHAR(32), unique=False, nullable=True)
-    role = Column(Integer, nullable=False)
+    role = Column(Integer)
 
     #one to many
     coach_id = Column(BigInteger, ForeignKey("users.user_id"))
