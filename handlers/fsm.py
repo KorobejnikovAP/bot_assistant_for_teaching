@@ -1,0 +1,23 @@
+from aiogram.fsm.state import State, StatesGroup
+
+#состояния всех пользователей
+class Actions(StatesGroup):
+    waiting_for_select_role = State()
+
+#состояния преподавателя
+class CoachActions(Actions):
+    waiting_for_text_action = State()
+    waiting_for_topic = State()
+    waiting_for_description = State()
+    waiting_for_upload_hw = State()
+    waiting_for_nick = State()
+
+#состояния ученика
+class StudentActions(Actions):
+    student_waiting_for_text_action = State()
+    student_waiting_for_select_theme = State()
+    student_waiting_for_upload_hw = State()
+
+#состояния администратора
+class AdminActions(Actions):
+    admin_waiting_for_text_action = State()

@@ -1,7 +1,7 @@
 import datetime
 
 from .base import BaseModel
-from sqlalchemy.types import BigInteger, VARCHAR, DATE
+from sqlalchemy.types import BigInteger, Integer, VARCHAR, DATE
 from sqlalchemy import Column, ForeignKey
 from sqlalchemy.orm import relationship
 
@@ -11,8 +11,7 @@ class User(BaseModel):
 
     user_id = Column(BigInteger, unique=True, nullable=False, primary_key=True)
     username = Column(VARCHAR(32), unique=False, nullable=True)
-
-    role = Column
+    role = Column(Integer, nullable=False)
 
     #one to many
     coach_id = Column(BigInteger, ForeignKey("users.user_id"))

@@ -1,4 +1,8 @@
-from .request_hw import request_router
+
+from .coach import coach_router
+from .student import student_router
 from .start_comand import start_router
 
-routers = (request_router, start_router)
+from .structures import Role
+
+routers = (start_router, coach_router, student_router)

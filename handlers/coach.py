@@ -1,28 +1,22 @@
 from aiogram import Router, F, Bot
-from aiogram.filters import Command
 from aiogram.types import Message, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove, BufferedInputFile
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import State, StatesGroup
-from .start_comand import CoachActions, StudentActions
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
+from .fsm import CoachActions
+from sqlalchemy.orm import sessionmaker
 
 from telethon import TelegramClient
 from telethon.tl.functions.users import GetFullUserRequest
 
 from config_reader import config
 
-import re
-
 from sqlalchemy import select, update
 from db import User, HomeWork
     
 
-roles = ["Преподаватель", "Ученик"]
-request_router = Router()
+coach_router = Router()
 
 
-@request_router.message(
+@coach_router.message(
     F.text == "Преподаватель",
     CoachActions.waiting_for_select_role,
 )
@@ -50,7 +44,7 @@ async def coach_menu(message: Message, state: FSMContext, session_maker: session
     await state.set_state(CoachActions.waiting_for_text_action)
 
 
-@request_router.message(
+@coach_router.message(
     F.text == "Добавить новое д.з",
     CoachActions.waiting_for_text_action,
 )
@@ -59,7 +53,7 @@ async def coach_write_topic(message: Message, state: FSMContext):
     await state.set_state(CoachActions.waiting_for_topic)
 
 
-@request_router.message(
+@coach_router.message(
     F.text == "Добавить ученика",
     CoachActions.waiting_for_text_action,
 )
@@ -71,7 +65,7 @@ async def coach_write_nick(message: Message, state: FSMContext):
     await state.set_state(CoachActions.waiting_for_nick)
 
 
-@request_router.message(
+@coach_router.message(
     CoachActions.waiting_for_nick
 )
 async def coach_add_student(message: Message, state: FSMContext, session_maker: sessionmaker):
@@ -109,7 +103,7 @@ async def coach_add_student(message: Message, state: FSMContext, session_maker: 
             await message.answer(text="У этого ученика уже есть учитель!")
 
 
-@request_router.message(
+@coach_router.message(
     F.text[0] != '/',
     CoachActions.waiting_for_topic,
 )
@@ -120,7 +114,7 @@ async def coach_write_description(message: Message, state: FSMContext, session_m
     await state.set_state(CoachActions.waiting_for_description)
 
 
-@request_router.message(
+@coach_router.message(
     F.text[0] != '/',
     CoachActions.waiting_for_description,
 )
@@ -131,7 +125,7 @@ async def coach_upload_file(message: Message, state: FSMContext, session_maker: 
     await state.set_state(CoachActions.waiting_for_upload_hw)
 
 
-@request_router.message(
+@coach_router.message(
     F.content_type,
     CoachActions.waiting_for_upload_hw,
 )
@@ -155,67 +149,3 @@ async def coach_end_upload_hw(message: Message, state: FSMContext, session_maker
         session.add(hw)
     await state.clear()
     await message.answer(text="Вы загрузили домашку")
-
-
-
-#хэндлеры для ученика 
-
-@request_router.message(
-    F.text == "Ученик",
-    StudentActions.waiting_for_select_role,
-)
-async def student_menu(message: Message, state: FSMContext):
-    await state.update_data(role="ученик")
-    kb = [
-        [
-            KeyboardButton(text="Получить д.з"),
-            KeyboardButton(text="Загрузить д.з"),
-        ]
-    ]
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=kb,
-        resize_keyboard=True
-    )
-    await message.answer(
-        text="Выберите дейтвие:", 
-        reply_markup=keyboard
-    )
-    await state.set_state(StudentActions.student_waiting_for_text_action)
-
-
-@request_router.message(
-    F.text == "Получить д.з",
-    StudentActions.student_waiting_for_text_action
-)
-async def student_select_action(message: Message, state: FSMContext, session_maker: sessionmaker):
-    
-    kb = []
-
-    async with session_maker.begin() as session:
-        user = (await session.scalars(select(User).where(User.user_id == message.from_user.id))).one()
-        homeworks = (await session.scalars(select(HomeWork).where(HomeWork.author_id == user.coach_id))).all()
-        for hw in homeworks:
-            kb.append([KeyboardButton(text=hw.topic)])
-
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=kb,
-        resize_keyboard=True
-    )
-
-    await message.answer(text="Выберете тему:", reply_markup=keyboard)
-    await state.set_state(StudentActions.student_waiting_for_select_theme)
-
-
-@request_router.message(
-    F.text[0] != '/',
-    StudentActions.student_waiting_for_select_theme
-)
-async def student_select_theme(message: Message, state: FSMContext, session_maker: sessionmaker):
-    
-    theme = message.text
-    async with session_maker.begin() as session:
-        homework = (await session.scalars(select(HomeWork).where(HomeWork.topic == theme))).one()
-        await message.answer(text=f"Описание: {homework.description}")
-        await message.answer_document(BufferedInputFile(homework.photo, filename="file"))
-
-    await state.clear()
