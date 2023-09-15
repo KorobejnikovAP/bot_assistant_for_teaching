@@ -76,8 +76,8 @@ async def coach_add_student(message: Message, state: FSMContext, session_maker: 
         config.api_hash.get_secret_value()
     ).start(bot_token=config.bot_token.get_secret_value())
     
-    async with client as ses:
-        user = await ses(GetFullUserRequest(username))
+    async with client as session:
+        user = await session(GetFullUserRequest(username))
 
     new_user = User(
                 user_id = user.full_user.id,

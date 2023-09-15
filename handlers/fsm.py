@@ -3,6 +3,7 @@ from aiogram.fsm.state import State, StatesGroup
 #состояния всех пользователей
 class Actions(StatesGroup):
     waiting_for_select_role = State()
+    
 
 #состояния преподавателя
 class CoachActions(Actions):
@@ -21,3 +22,4 @@ class StudentActions(Actions):
 #состояния администратора
 class AdminActions(Actions):
     admin_waiting_for_text_action = State()
+    waiting_for_nick = State()
