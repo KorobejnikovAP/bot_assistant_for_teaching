@@ -21,5 +21,7 @@ class StudentActions(Actions):
 
 #состояния администратора
 class AdminActions(Actions):
+    admin_waiting_for_password = State()
+    admin_connection = State()
     admin_waiting_for_text_action = State()
-    waiting_for_nick = State()
+    admin_waiting_for_nick = State()

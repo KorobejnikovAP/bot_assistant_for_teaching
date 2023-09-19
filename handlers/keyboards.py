@@ -8,6 +8,11 @@ role_keyboard = [
         ]
     ]
 
+admin_action_keyboard = [
+        [KeyboardButton(text="Добавить преподавателя")],
+        [KeyboardButton(text="Удалить преподавателя")]
+    ]
+
 coach_action_keyboard = [
         [
             KeyboardButton(text="Добавить новое д.з"),
@@ -15,6 +20,13 @@ coach_action_keyboard = [
         ],
         [
             KeyboardButton(text="Посмотреть список д.з")
+        ]
+    ]
+
+student_action_keyboard = [
+        [
+            KeyboardButton(text="Получить д.з"),
+            KeyboardButton(text="Загрузить д.з"),
         ]
     ]
 
