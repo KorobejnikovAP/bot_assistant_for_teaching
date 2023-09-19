@@ -3,6 +3,7 @@ from aiogram.filters import Command
 from aiogram.types import Message, KeyboardButton, ReplyKeyboardMarkup, ReplyKeyboardRemove
 from aiogram.fsm.context import FSMContext
 from .fsm import Actions
+from .keyboards import role_keyboard
 
 
 start_router = Router()
@@ -11,15 +12,9 @@ start_router = Router()
 @start_router.message(Command("start"))
 async def cmd_start(message: Message, state: FSMContext):
     await state.clear()
-    kb = [
-        [
-            KeyboardButton(text="Администратор"),
-            KeyboardButton(text="Преподаватель"),
-            KeyboardButton(text="Ученик")
-        ]
-    ]
+    
     keyboard = ReplyKeyboardMarkup(
-        keyboard=kb,
+        keyboard=role_keyboard,
         resize_keyboard=True,
         input_field_placeholder="Кто ты ?"
     )
@@ -35,6 +30,6 @@ async def cmd_start(message: Message, state: FSMContext):
 async def cmd_cancel(message: Message, state: FSMContext):
     await state.clear()
     await message.answer(
-        text="Действие отменено",
+        text="Вы вышли из аккаунта! \nВоспользуйтесь командой /start, чтобы продолжить работу.",
         reply_markup=ReplyKeyboardRemove()
     )

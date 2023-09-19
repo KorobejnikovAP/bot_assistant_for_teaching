@@ -13,6 +13,7 @@ from sqlalchemy import select, update
 from db import User, HomeWork
 from .keyboards import coach_action_keyboard, cancel_keyboard
 from .structures import Role
+from .start_comand import cmd_cancel
     
 
 coach_router = Router()
@@ -67,6 +68,15 @@ async def coach_write_nick(message: Message, state: FSMContext):
 
 
 @coach_router.message(
+    F.text == "Отменить действие", 
+    CoachActions.waiting_for_nick
+)
+async def return_to_select_action(message: Message, state: FSMContext):
+    await cancel(message, state)
+
+
+@coach_router.message(
+    F.text[0] != '/',
     CoachActions.waiting_for_nick
 )
 async def coach_add_student(message: Message, state: FSMContext, session_maker: sessionmaker):
@@ -127,14 +137,29 @@ async def coach_write_topic(message: Message, state: FSMContext):
 
 
 @coach_router.message(
+    F.text == "Отменить действие", 
+    CoachActions.waiting_for_topic
+)
+async def return_to_select_action(message: Message, state: FSMContext):
+    await cancel(message, state)
+
+
+@coach_router.message(
     F.text[0] != '/',
     CoachActions.waiting_for_topic,
 )
 async def coach_write_description(message: Message, state: FSMContext, session_maker: sessionmaker):
-
     await state.update_data(topic=message.text)
     await message.answer(text="Опишите задание (вы сможете прикрепить файл на следующем шаге)")
     await state.set_state(CoachActions.waiting_for_description)
+
+
+@coach_router.message(
+    F.text == "Отменить действие", 
+    CoachActions.waiting_for_description
+)
+async def return_to_select_action(message: Message, state: FSMContext):
+    await cancel(message, state)
 
 
 @coach_router.message(
@@ -146,6 +171,14 @@ async def coach_upload_file(message: Message, state: FSMContext, session_maker: 
     await state.update_data(description=message.text)
     await message.answer(text="Загрузите файл")
     await state.set_state(CoachActions.waiting_for_upload_hw)
+
+
+@coach_router.message(
+    F.text == "Отменить действие", 
+    CoachActions.waiting_for_upload_hw
+)
+async def return_to_select_action(message: Message, state: FSMContext):
+    await cancel(message, state)
 
 
 @coach_router.message(
@@ -178,8 +211,9 @@ async def coach_end_upload_hw(message: Message, state: FSMContext, session_maker
     )
 
 
-@coach_router.message(
-    F.text == "Отменить действие"
-)
 async def cancel(message: Message, state: FSMContext):
-    pass
+    await state.set_state(CoachActions.waiting_for_text_action)
+    await message.answer(
+        text="Что-нибудь ещё ?",
+        reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard)
+    )
