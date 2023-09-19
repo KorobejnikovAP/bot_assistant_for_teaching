@@ -11,6 +11,8 @@ from config_reader import config
 
 from sqlalchemy import select, update
 from db import User, HomeWork
+from .keyboards import coach_action_keyboard, cancel_keyboard
+from .structures import Role
     
 
 coach_router = Router()
@@ -21,36 +23,35 @@ coach_router = Router()
     CoachActions.waiting_for_select_role,
 )
 async def coach_menu(message: Message, state: FSMContext, session_maker: sessionmaker):
-    user = User(
-        user_id=message.from_user.id,
-        username=message.from_user.username,
-    )
-
-    #Пользователь добавляется в базу, если его ещё там нет
     async with session_maker.begin() as session:
-        if len((await session.scalars(select(User).where(User.user_id == user.user_id))).all()) == 0:
-            session.add(user)
-        
-    kb = [
-        [
-            KeyboardButton(text="Добавить новое д.з"),
-            KeyboardButton(text="Добавить ученика"),
-        ]
-    ]
-    keyboard = ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
-
+        if len((await session.scalars(
+            select(User)
+            .where(User.user_id == message.from_user.id)
+            .where(User.role <= Role.COACH.value)
+        )).all()) == 0:
+            await message.answer("Вас нет в базе преподавателей! \nОбратитесь к админисстратору.")
+            return 
+    keyboard = ReplyKeyboardMarkup(keyboard=coach_action_keyboard, resize_keyboard=True)
     await message.answer(text="Выберите дейтвие:", reply_markup=keyboard) 
     await state.update_data(role="преподаватель")
     await state.set_state(CoachActions.waiting_for_text_action)
 
 
 @coach_router.message(
-    F.text == "Добавить новое д.з",
+    F.text == "Посмотреть список д.з",
     CoachActions.waiting_for_text_action,
 )
-async def coach_write_topic(message: Message, state: FSMContext):
-    await message.answer(text="Напишите тему задания", reply_markup=ReplyKeyboardRemove())
-    await state.set_state(CoachActions.waiting_for_topic)
+async def homework_list(message: Message, state: FSMContext, session_maker: sessionmaker):
+    async with session_maker.begin() as session:
+        qs = await session.scalars(select(HomeWork).where(HomeWork.author_id == message.from_user.id))
+        hw_list = []
+        for hw in qs.all():
+            hw_list.append(hw.topic)
+        if len(hw_list) > 0:
+            ans = "Список ваших домашних работ:\n\t" + '\n\t'.join(hw_list)
+        else:
+            ans = "У вас нет домашних заданий!"
+        await message.answer(text=ans)
 
 
 @coach_router.message(
@@ -60,7 +61,7 @@ async def coach_write_topic(message: Message, state: FSMContext):
 async def coach_write_nick(message: Message, state: FSMContext):
     await message.answer(
         text="Укажите никнейм ученика в телеграмме \n в формате @username:",
-        reply_markup=ReplyKeyboardRemove()
+        reply_markup=ReplyKeyboardMarkup(keyboard=cancel_keyboard)
     )
     await state.set_state(CoachActions.waiting_for_nick)
 
@@ -90,9 +91,15 @@ async def coach_add_student(message: Message, state: FSMContext, session_maker: 
         check_user = qs.one()
         if not check_user:
             session.add(new_user)
-            await message.answer(text="Вы добавили ученика")
+            await message.answer(
+                text="Вы добавили ученика", 
+                reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard)
+            )
         elif check_user.coach_id == None:
-            await message.answer(text="Вы добавили ученика")
+            await message.answer(
+                text="Вы добавили ученика",
+                reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard)
+            )
             await session.execute(
                 update(User)
                 .where(User.user_id == user.full_user.id)
@@ -100,7 +107,23 @@ async def coach_add_student(message: Message, state: FSMContext, session_maker: 
                 .execution_options(synchronize_session=None)
             )
         else:
-            await message.answer(text="У этого ученика уже есть учитель!")
+            await message.answer(
+                text="У этого ученика уже есть учитель!",
+                reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard)
+            )
+        await state.set_state(CoachActions.waiting_for_text_action)
+
+
+@coach_router.message(
+    F.text == "Добавить новое д.з",
+    CoachActions.waiting_for_text_action,
+)
+async def coach_write_topic(message: Message, state: FSMContext):
+    await message.answer(
+        text="Напишите тему задания",
+        reply_markup=ReplyKeyboardMarkup(keyboard=cancel_keyboard)
+    )
+    await state.set_state(CoachActions.waiting_for_topic)
 
 
 @coach_router.message(
@@ -147,5 +170,16 @@ async def coach_end_upload_hw(message: Message, state: FSMContext, session_maker
 
     async with session_maker.begin() as session:
         session.add(hw)
-    await state.clear()
-    await message.answer(text="Вы загрузили домашку")
+    #await state.clear()
+    await state.set_state(CoachActions.waiting_for_text_action)
+    await message.answer(
+        text="Вы загрузили домашку",
+        reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard)
+    )
+
+
+@coach_router.message(
+    F.text == "Отменить действие"
+)
+async def cancel(message: Message, state: FSMContext):
+    pass

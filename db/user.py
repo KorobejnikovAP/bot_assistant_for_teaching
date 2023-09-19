@@ -15,10 +15,12 @@ class User(BaseModel):
 
     #one to many
     coach_id = Column(BigInteger, ForeignKey("users.user_id"))
-    student = relationship("User")
+    student = relationship("User", foreign_keys=[coach_id])
+    #one to many
+    admin_id = Column(BigInteger, ForeignKey("users.user_id"))
+    coach = relationship("User", foreign_keys=[admin_id])
 
     homeworks = relationship("HomeWork", back_populates="author")
-
     reg_date = Column(DATE, default=datetime.date.today())
     upd_date = Column(DATE, onupdate=datetime.date.today())
 
