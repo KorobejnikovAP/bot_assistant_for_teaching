@@ -22,7 +22,7 @@ async def main():
         drivername="postgresql+asyncpg",
         username=config.db_user.get_secret_value(),
         port=config.db_port.get_secret_value(),
-        host="localhost",
+        host=config.db_host.get_secret_value(),
         database=config.db_name.get_secret_value(),
         password=config.db_password.get_secret_value()
     )

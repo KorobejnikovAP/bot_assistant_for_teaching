@@ -5,7 +5,7 @@ from aiogram.fsm.context import FSMContext
 from telethon import TelegramClient
 from telethon.tl.functions.users import GetFullUserRequest
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, update
 
 from .structures import Role
 from .fsm import AdminActions, Actions
@@ -28,7 +28,8 @@ async def select_action(message: Message, state: FSMContext, session_maker: sess
             select(User)
             .where(User.user_id == message.from_user.id)
         )
-        if len(qs.all()) == 0:
+        user = qs.first()
+        if user and user.role != Role.ADMIN.value:
             await message.answer(
                 text="Введите пароль администратора:",
                 reply_markup=ReplyKeyboardMarkup(keyboard=cancel_keyboard)
@@ -57,8 +58,19 @@ async def return_to_select_role(message: Message, state: FSMContext):
 @admin_router.message(
     AdminActions.admin_waiting_for_password
 )
-async def check_password(message: Message, state: FSMContext):
-    pass
+async def check_password(message: Message, state: FSMContext, session_maker: sessionmaker):
+    if message.text == config.admin_password.get_secret_value():
+        async with session_maker.begin() as session:
+            await session.execute(
+                    update(User)
+                    .where(User.user_id == message.from_user.id)
+                    .values(role=Role.ADMIN.value)
+                    .execution_options(synchronize_session=None)
+                )
+        await message.answer(text="Вы вошли как администратор!", reply_markup=ReplyKeyboardMarkup(keyboard=admin_action_keyboard))
+        await state.set_state(AdminActions.admin_waiting_for_text_action)
+    else:
+        await message.answer(text="Пароль неверный! Введите снова:")
 
 
 @admin_router.message(

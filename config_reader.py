@@ -10,9 +10,12 @@ class Settings(BaseSettings):
     db_password: SecretStr
     db_name: SecretStr
     db_port: SecretStr
+    db_host: SecretStr
 
     api_id: SecretStr
     api_hash: SecretStr
+
+    admin_password: SecretStr
 
     # Вложенный класс с дополнительными указаниями для настроек
     class Config:
