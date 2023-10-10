@@ -20,7 +20,7 @@ admin_router = Router()
 
 @admin_router.message(
     F.text == "Администратор",
-    AdminActions.waiting_for_select_role,
+    Actions.waiting_for_select_role,
 )
 async def select_action(message: Message, state: FSMContext, session_maker: sessionmaker):
     async with session_maker.begin() as session:
@@ -29,21 +29,18 @@ async def select_action(message: Message, state: FSMContext, session_maker: sess
             .where(User.user_id == message.from_user.id)
         )
         user = qs.first()
-        if user and user.role != Role.ADMIN.value:
+        if not user or user.role != Role.ADMIN.value:
             await message.answer(
                 text="Введите пароль администратора:",
-                reply_markup=ReplyKeyboardMarkup(keyboard=cancel_keyboard)
+                reply_markup=ReplyKeyboardMarkup(keyboard=cancel_keyboard, resize_keyboard=True)
             )
             await state.set_state(AdminActions.admin_waiting_for_password)
             return
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=admin_action_keyboard, 
-        resize_keyboard=True
-    )
-    await message.answer(
-        text="Выберите действие:", 
-        reply_markup=keyboard
-    )
+        else:
+            await message.answer(
+                text="Здравствуйте, администратор!",
+                reply_markup=ReplyKeyboardMarkup(keyboard=admin_action_keyboard, resize_keyboard=True)
+            )
     await state.set_state(AdminActions.admin_waiting_for_text_action)
 
 
@@ -61,13 +58,29 @@ async def return_to_select_role(message: Message, state: FSMContext):
 async def check_password(message: Message, state: FSMContext, session_maker: sessionmaker):
     if message.text == config.admin_password.get_secret_value():
         async with session_maker.begin() as session:
-            await session.execute(
+            qs = await session.scalars(
+                select(User)
+                .where(User.user_id == message.from_user.id)
+            )
+            user = qs.first()
+            if not user:
+                new_user = User(
+                    user_id = message.from_user.id,
+                    username = message.from_user.username,
+                    role = Role.ADMIN.value,
+                )
+                session.add(new_user)
+            else:
+                await session.execute(
                     update(User)
                     .where(User.user_id == message.from_user.id)
                     .values(role=Role.ADMIN.value)
                     .execution_options(synchronize_session=None)
                 )
-        await message.answer(text="Вы вошли как администратор!", reply_markup=ReplyKeyboardMarkup(keyboard=admin_action_keyboard))
+        await message.answer(
+            text="Вы вошли как администратор!",
+            reply_markup=ReplyKeyboardMarkup(keyboard=admin_action_keyboard, resize_keyboard=True)
+        )
         await state.set_state(AdminActions.admin_waiting_for_text_action)
     else:
         await message.answer(text="Пароль неверный! Введите снова:")
@@ -80,7 +93,7 @@ async def check_password(message: Message, state: FSMContext, session_maker: ses
 async def wait_nick(message: Message, state: FSMContext):
     await message.answer(
         text="Введите nickname пользователя",
-        reply_markup=ReplyKeyboardMarkup(keyboard=cancel_keyboard))
+        reply_markup=ReplyKeyboardMarkup(keyboard=cancel_keyboard, resize_keyboard=True))
     await state.set_state(AdminActions.admin_waiting_for_nick)
 
 
@@ -120,7 +133,7 @@ async def add_coach(message: Message, state: FSMContext, session_maker: sessionm
             await message.answer("Преподаватель добавлен!")
         else:
             await message.answer("Этот преподаватель уже есть в базе!")
-    await state.set_state(AdminActions.admin_waiting_for_text_action)
+    await cancel(message, state)
 
     
 @admin_router.message(
@@ -130,7 +143,7 @@ async def add_coach(message: Message, state: FSMContext, session_maker: sessionm
 async def delete_coach_nick(message: Message, state: FSMContext, session_maker: sessionmaker):
     await message.answer(
         text="Введите username преподавтеля, которого собираетесь удалить: ",
-        reply_markup=ReplyKeyboardMarkup(keyboard=cancel_keyboard)
+        reply_markup=ReplyKeyboardMarkup(keyboard=cancel_keyboard, resize_keyboard=True)
     )
     await state.set_state(AdminActions.admin_waiting_for_nick_delete_coach)
 
@@ -163,12 +176,12 @@ async def delete_coach(message: Message, state: FSMContext, session_maker: sessi
             await message.answer("Преподаватель удалён!")
         else:
             await message.answer("Этого преподавателя нет в базе!")
-    await state.set_state(AdminActions.admin_waiting_for_text_action)
+    await cancel(message, state)
 
 
 async def cancel(message: Message, state: FSMContext):
     await state.set_state(AdminActions.admin_waiting_for_text_action)
     await message.answer(
         text="Что-нибудь ещё ?",
-        reply_markup=ReplyKeyboardMarkup(keyboard=admin_action_keyboard)
+        reply_markup=ReplyKeyboardMarkup(keyboard=admin_action_keyboard, resize_keyboard=True)
     )

@@ -1,11 +1,9 @@
 from aiogram.types import Message, KeyboardButton, ReplyKeyboardMarkup
 
 role_keyboard = [
-        [
-            KeyboardButton(text="Администратор"),
-            KeyboardButton(text="Преподаватель"),
-            KeyboardButton(text="Ученик")
-        ]
+        [KeyboardButton(text="Администратор")],
+        [KeyboardButton(text="Преподаватель")],
+        [KeyboardButton(text="Ученик")]
     ]
 
 admin_action_keyboard = [
@@ -14,24 +12,16 @@ admin_action_keyboard = [
     ]
 
 coach_action_keyboard = [
-        [
-            KeyboardButton(text="Добавить новое д.з"),
-            KeyboardButton(text="Добавить ученика"),
-        ],
-        [
-            KeyboardButton(text="Посмотреть список д.з")
-        ]
+        [KeyboardButton(text="Добавить новое д.з")],
+        [KeyboardButton(text="Добавить ученика")],
+        [KeyboardButton(text="Посмотреть список д.з")]
     ]
 
 student_action_keyboard = [
-        [
-            KeyboardButton(text="Получить д.з"),
-            KeyboardButton(text="Загрузить д.з"),
-        ]
+        [KeyboardButton(text="Получить д.з")],
+        [KeyboardButton(text="Загрузить д.з")],
     ]
 
 cancel_keyboard = [
-    [
-        KeyboardButton(text="Отменить действие")
-    ]
+    [KeyboardButton(text="Отменить действие")]
 ]

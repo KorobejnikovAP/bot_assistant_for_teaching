@@ -62,7 +62,7 @@ async def homework_list(message: Message, state: FSMContext, session_maker: sess
 async def coach_write_nick(message: Message, state: FSMContext):
     await message.answer(
         text="Укажите никнейм ученика в телеграмме \n в формате @username:",
-        reply_markup=ReplyKeyboardMarkup(keyboard=cancel_keyboard)
+        reply_markup=ReplyKeyboardMarkup(keyboard=cancel_keyboard, resize_keyboard=True)
     )
     await state.set_state(CoachActions.waiting_for_nick)
 
@@ -98,17 +98,17 @@ async def coach_add_student(message: Message, state: FSMContext, session_maker: 
 
     async with session_maker.begin() as session:
         qs = await session.scalars(select(User).where(User.user_id == new_user.user_id))
-        check_user = qs.one()
+        check_user = qs.first()
         if not check_user:
             session.add(new_user)
             await message.answer(
                 text="Вы добавили ученика", 
-                reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard)
+                reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard, resize_keyboard=True)
             )
         elif check_user.coach_id == None:
             await message.answer(
                 text="Вы добавили ученика",
-                reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard)
+                reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard, resize_keyboard=True)
             )
             await session.execute(
                 update(User)
@@ -119,7 +119,7 @@ async def coach_add_student(message: Message, state: FSMContext, session_maker: 
         else:
             await message.answer(
                 text="У этого ученика уже есть учитель!",
-                reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard)
+                reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard, resize_keyboard=True)
             )
         await state.set_state(CoachActions.waiting_for_text_action)
 
@@ -131,7 +131,7 @@ async def coach_add_student(message: Message, state: FSMContext, session_maker: 
 async def coach_write_topic(message: Message, state: FSMContext):
     await message.answer(
         text="Напишите тему задания",
-        reply_markup=ReplyKeyboardMarkup(keyboard=cancel_keyboard)
+        reply_markup=ReplyKeyboardMarkup(keyboard=cancel_keyboard, resize_keyboard=True)
     )
     await state.set_state(CoachActions.waiting_for_topic)
 
@@ -186,11 +186,14 @@ async def return_to_select_action(message: Message, state: FSMContext):
     CoachActions.waiting_for_upload_hw,
 )
 async def coach_end_upload_hw(message: Message, state: FSMContext, session_maker: sessionmaker, bot:Bot):
-    if message.photo: file_id = message.photo[-1].file_id
-    elif message.document: file_id = message.document.file_id
-    file = await bot.get_file(file_id)
-    file_path = file.file_path
-    new_photo = (await bot.download_file(file_path)).read()
+    if message.photo: 
+        file_info = await bot.get_file(message.photo[len(message.photo) - 1].file_id)
+        new_photo = (await bot.download_file(file_info.file_path)).read()
+    elif message.document: 
+        file_id = message.document.file_id
+        file = await bot.get_file(file_id)
+        file_path = file.file_path
+        new_photo = (await bot.download_file(file_path)).read()
 
     hw_data = await state.get_data()
 
@@ -207,7 +210,7 @@ async def coach_end_upload_hw(message: Message, state: FSMContext, session_maker
     await state.set_state(CoachActions.waiting_for_text_action)
     await message.answer(
         text="Вы загрузили домашку",
-        reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard)
+        reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard, resize_keyboard=True)
     )
 
 
@@ -215,5 +218,5 @@ async def cancel(message: Message, state: FSMContext):
     await state.set_state(CoachActions.waiting_for_text_action)
     await message.answer(
         text="Что-нибудь ещё ?",
-        reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard)
+        reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard, resize_keyboard=True)
     )

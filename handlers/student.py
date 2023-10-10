@@ -20,13 +20,12 @@ student_router = Router()
 )
 async def student_menu(message: Message, state: FSMContext):
     await state.update_data(role="ученик")
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=student_action_keyboard,
-        resize_keyboard=True
-    )
     await message.answer(
         text="Выберите дейтвие:", 
-        reply_markup=keyboard
+        reply_markup=ReplyKeyboardMarkup(
+            keyboard=student_action_keyboard,
+            resize_keyboard=True
+        )
     )
     await state.set_state(StudentActions.student_waiting_for_text_action)
 
@@ -42,11 +41,11 @@ async def student_select_action(message: Message, state: FSMContext, session_mak
         homeworks = (await session.scalars(select(HomeWork).where(HomeWork.author_id == user.coach_id))).all()
         for hw in homeworks:
             kb.append([KeyboardButton(text=hw.topic)])
-    keyboard = ReplyKeyboardMarkup(
-        keyboard=kb,
-        resize_keyboard=True
+   
+    await message.answer(
+        text="Выберете тему:",
+        reply_markup=ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
     )
-    await message.answer(text="Выберете тему:", reply_markup=keyboard)
     await state.set_state(StudentActions.student_waiting_for_select_theme)
 
 
@@ -59,7 +58,18 @@ async def student_select_theme(message: Message, state: FSMContext, session_make
     theme = message.text
     async with session_maker.begin() as session:
         homework = (await session.scalars(select(HomeWork).where(HomeWork.topic == theme))).one()
-        await message.answer(text=f"Описание: {homework.description}")
-        await message.answer_document(BufferedInputFile(homework.photo, filename="file"))
+        await message.answer(
+            text=f"Описание: {homework.description}",
+            reply_markup=ReplyKeyboardMarkup(keyboard=student_action_keyboard, resize_keyboard=True)
+        )
+        await message.answer_photo(BufferedInputFile(homework.photo, filename="file"))
 
+    await state.set_state(StudentActions.student_waiting_for_text_action)
+
+
+async def stop(message: Message, state: FSMContext):
+    await message.answer(
+        text="Действие отменено",
+        reply_markup=ReplyKeyboardMarkup(keyboard=student_action_keyboard, resize_keyboard=True)
+    )
     await state.set_state(StudentActions.student_waiting_for_text_action)
