@@ -19,7 +19,7 @@ coach_action_keyboard = [
 
 student_action_keyboard = [
         [KeyboardButton(text="Получить д.з")],
-        [KeyboardButton(text="Загрузить д.з")],
+        #[KeyboardButton(text="Загрузить д.з")],
     ]
 
 cancel_keyboard = [
