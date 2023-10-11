@@ -9,6 +9,7 @@ from config_reader import config
 from sqlalchemy import select, update
 from db import User, HomeWork
 from .keyboards import student_action_keyboard
+from .structures import TypeHwData
     
 
 student_router = Router()
@@ -62,7 +63,10 @@ async def student_select_theme(message: Message, state: FSMContext, session_make
             text=f"Описание: {homework.description}",
             reply_markup=ReplyKeyboardMarkup(keyboard=student_action_keyboard, resize_keyboard=True)
         )
-        await message.answer_photo(BufferedInputFile(homework.photo, filename="file"))
+        if homework.type_data == TypeHwData.PHOTO.value:
+            await message.answer_photo(BufferedInputFile(homework.data, filename="file"))
+        else:
+            await message.answer_document(BufferedInputFile(homework.data, filename="file"))
 
     await state.set_state(StudentActions.student_waiting_for_text_action)
 

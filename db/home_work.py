@@ -14,7 +14,7 @@ class HomeWork(BaseModel):
     author = relationship("User", back_populates="homeworks")
     topic = Column(VARCHAR(50))
     description = Column(TEXT)
-    photo = Column(BYTEA)
-
+    data = Column(BYTEA)
+    type_data = Column(Integer, nullable=False)
     def __str__(self) -> str:
         return f"HW id: {self.hw_id}"

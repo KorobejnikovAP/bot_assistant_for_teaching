@@ -12,7 +12,7 @@ from config_reader import config
 from sqlalchemy import select, update
 from db import User, HomeWork
 from .keyboards import coach_action_keyboard, cancel_keyboard
-from .structures import Role
+from .structures import Role, TypeHwData
 from .start_comand import cmd_cancel
     
 
@@ -189,11 +189,16 @@ async def coach_end_upload_hw(message: Message, state: FSMContext, session_maker
     if message.photo: 
         file_info = await bot.get_file(message.photo[len(message.photo) - 1].file_id)
         new_photo = (await bot.download_file(file_info.file_path)).read()
+        type_d = TypeHwData.PHOTO.value
     elif message.document: 
         file_id = message.document.file_id
         file = await bot.get_file(file_id)
         file_path = file.file_path
         new_photo = (await bot.download_file(file_path)).read()
+        type_d = TypeHwData.Document.value
+    else:
+        await message.answer(text="Неподходящий формат")
+        return
 
     hw_data = await state.get_data()
 
@@ -201,7 +206,8 @@ async def coach_end_upload_hw(message: Message, state: FSMContext, session_maker
         author_id=message.from_user.id,
         topic=hw_data["topic"],
         description=hw_data["description"],
-        photo=new_photo
+        data=new_photo,
+        type_data=type_d
     )
 
     async with session_maker.begin() as session:
