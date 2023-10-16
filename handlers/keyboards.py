@@ -13,6 +13,7 @@ admin_action_keyboard = [
 
 coach_action_keyboard = [
         [KeyboardButton(text="Добавить новое д.з")],
+        [KeyboardButton(text="Добавить конспект")],
         [KeyboardButton(text="Добавить ученика")],
         [KeyboardButton(text="Посмотреть список д.з")]
     ]

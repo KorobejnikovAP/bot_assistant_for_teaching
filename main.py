@@ -4,7 +4,7 @@ import logging
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 from aiogram import Bot, Dispatcher, types
-from db import BaseModel, create_async_engine, get_session_maker, proceed_schemas
+from db import BaseModel, create_async_engine, get_session_maker
 from middlewares.session_mdwr import DbSessionMiddleware
 
 from handlers import routers
@@ -29,8 +29,6 @@ async def main():
 
     #создание бд и пула сессий
     async_engine = create_async_engine(postgres_url)
-    #Делегировано alembic
-    #await proceed_schemas(async_engine, BaseModel.metadata)
     session_maker = get_session_maker(async_engine)
     
     #подключение мидлварей и роутеров 

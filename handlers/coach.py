@@ -10,7 +10,7 @@ from telethon.tl.functions.users import GetFullUserRequest
 from config_reader import config
 
 from sqlalchemy import select, update
-from db import User, HomeWork
+from db import User, HomeWork, Record
 from .keyboards import coach_action_keyboard, cancel_keyboard
 from .structures import Role, TypeHwData
 from .start_comand import cmd_cancel
@@ -39,13 +39,103 @@ async def coach_menu(message: Message, state: FSMContext, session_maker: session
 
 
 @coach_router.message(
+    F.text == "Добавить конспект",
+    CoachActions.waiting_for_text_action,
+)
+async def start_add_record(message: Message, state: FSMContext, session_maker: sessionmaker):
+    async with session_maker.begin() as session:
+        qs = await session.scalars(select(User).where(User.coach_id == message.from_user.id))
+        student_list = [student.username for student in qs.all()]
+    ans = "Выберете ученика:"
+    kb = [[KeyboardButton(text=f"{student}")] for student in student_list]
+    await message.answer(text=ans, reply_markup=ReplyKeyboardMarkup(keyboard=kb))
+    await state.set_state(CoachActions.waiting_for_select_student)
+
+
+@coach_router.message(
+    F.text == "Отменить действие",
+    CoachActions.waiting_for_select_student
+)
+async def return_to_select_action(message: Message, state: FSMContext):
+    await cancel(message, state)
+
+
+@coach_router.message(
+    CoachActions.waiting_for_select_student
+)
+async def select_student(message: Message, state: FSMContext, session_maker: sessionmaker):
+    async with session_maker.begin() as session:
+        qs = await session.scalars(select(User).where(User.username == message.text))
+        student = qs.first()
+        if student:
+            await state.update_data(student_id=student.user_id)
+            await state.set_state(CoachActions.waiting_for_topic_record)
+            await message.answer(text="Напишите название конспекта")
+        else:
+            await message.answer(text="Ошибка, ученик не найден.")
+
+
+@coach_router.message(
+    F.text == "Отменить действие",
+    CoachActions.waiting_for_topic_record
+)
+async def return_to_select_action(message: Message, state: FSMContext):
+    await cancel(message, state)
+
+
+@coach_router.message(
+    F.text[0] != "/", 
+    CoachActions.waiting_for_topic_record
+)
+async def write_topic_for_record(message: Message, state: FSMContext):
+    await state.update_data(topic=message.text)
+    await state.set_state(CoachActions.waiting_for_upload_record)
+    await message.answer(text="Загрузите файл с конспектом в формате .png")
+
+
+@coach_router.message(
+    F.text == "Отменить действие",
+    CoachActions.waiting_for_upload_record
+)
+async def return_to_select_action(message: Message, state: FSMContext):
+    await cancel(message, state)
+
+
+@coach_router.message(
+    CoachActions.waiting_for_upload_record
+)
+async def upload_record(message: Message, state: FSMContext, session_maker: sessionmaker, bot: Bot):
+    if message.document: 
+        file_id = message.document.file_id
+        file = await bot.get_file(file_id)
+        file_path = file.file_path
+        new_data = (await bot.download_file(file_path)).read()
+    state_data = await state.get_data()
+    new_record = Record(
+        author_id=message.from_user.id,
+        student_id=state_data["student_id"],
+        topic=state_data["topic"],
+        data = new_data
+    )    
+    async with session_maker.begin() as sesison:
+        try:
+            sesison.add(new_record)
+            await message.answer(
+                text="Конспект загружен", 
+                reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard)
+            )
+            await state.set_state(CoachActions.waiting_for_text_action)
+        except:
+            await message.answer(text="Что-то пошло не так(")
+
+@coach_router.message(
     F.text == "Посмотреть список д.з",
     CoachActions.waiting_for_text_action,
 )
 async def homework_list(message: Message, state: FSMContext, session_maker: sessionmaker):
     async with session_maker.begin() as session:
         qs = await session.scalars(select(HomeWork).where(HomeWork.author_id == message.from_user.id))
-        hw_list = []
+        hw_list = list()
         for hw in qs.all():
             hw_list.append(hw.topic)
         if len(hw_list) > 0:
@@ -188,13 +278,13 @@ async def return_to_select_action(message: Message, state: FSMContext):
 async def coach_end_upload_hw(message: Message, state: FSMContext, session_maker: sessionmaker, bot:Bot):
     if message.photo: 
         file_info = await bot.get_file(message.photo[len(message.photo) - 1].file_id)
-        new_photo = (await bot.download_file(file_info.file_path)).read()
+        new_data = (await bot.download_file(file_info.file_path)).read()
         type_d = TypeHwData.PHOTO.value
     elif message.document: 
         file_id = message.document.file_id
         file = await bot.get_file(file_id)
         file_path = file.file_path
-        new_photo = (await bot.download_file(file_path)).read()
+        new_data = (await bot.download_file(file_path)).read()
         type_d = TypeHwData.Document.value
     else:
         await message.answer(text="Неподходящий формат")
@@ -206,7 +296,7 @@ async def coach_end_upload_hw(message: Message, state: FSMContext, session_maker
         author_id=message.from_user.id,
         topic=hw_data["topic"],
         description=hw_data["description"],
-        data=new_photo,
+        data=new_data,
         type_data=type_d
     )
 

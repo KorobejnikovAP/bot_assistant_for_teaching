@@ -66,7 +66,7 @@ async def student_select_theme(message: Message, state: FSMContext, session_make
         if homework.type_data == TypeHwData.PHOTO.value:
             await message.answer_photo(BufferedInputFile(homework.data, filename="file"))
         else:
-            await message.answer_document(BufferedInputFile(homework.data, filename="file"))
+            await message.answer_document(BufferedInputFile(homework.data, filename="file.txt"))
 
     await state.set_state(StudentActions.student_waiting_for_text_action)
 

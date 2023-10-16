@@ -12,6 +12,9 @@ class CoachActions(Actions):
     waiting_for_description = State()
     waiting_for_upload_hw = State()
     waiting_for_nick = State()
+    waiting_for_select_student = State()
+    waiting_for_upload_record = State()
+    waiting_for_topic_record = State()
 
 #состояния ученика
 class StudentActions(Actions):
