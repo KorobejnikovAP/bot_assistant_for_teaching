@@ -21,6 +21,7 @@ class StudentActions(Actions):
     student_waiting_for_text_action = State()
     student_waiting_for_select_theme = State()
     student_waiting_for_upload_hw = State()
+    student_waiting_for_select_record = State()
 
 #состояния администратора
 class AdminActions(Actions):

@@ -48,7 +48,8 @@ async def start_add_record(message: Message, state: FSMContext, session_maker: s
         student_list = [student.username for student in qs.all()]
     ans = "Выберете ученика:"
     kb = [[KeyboardButton(text=f"{student}")] for student in student_list]
-    await message.answer(text=ans, reply_markup=ReplyKeyboardMarkup(keyboard=kb))
+    kb.append([KeyboardButton(text="Отменить действие")])
+    await message.answer(text=ans, reply_markup=ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True))
     await state.set_state(CoachActions.waiting_for_select_student)
 
 
@@ -70,7 +71,10 @@ async def select_student(message: Message, state: FSMContext, session_maker: ses
         if student:
             await state.update_data(student_id=student.user_id)
             await state.set_state(CoachActions.waiting_for_topic_record)
-            await message.answer(text="Напишите название конспекта")
+            await message.answer(
+                text="Напишите название конспекта",
+                reply_markup=ReplyKeyboardMarkup(keyboard=cancel_keyboard, resize_keyboard=True),
+            )
         else:
             await message.answer(text="Ошибка, ученик не найден.")
 
@@ -122,7 +126,7 @@ async def upload_record(message: Message, state: FSMContext, session_maker: sess
             sesison.add(new_record)
             await message.answer(
                 text="Конспект загружен", 
-                reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard)
+                reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard, resize_keyboard=True)
             )
             await state.set_state(CoachActions.waiting_for_text_action)
         except:
