@@ -9,7 +9,7 @@ from config_reader import config
 from sqlalchemy import select, update
 from db import User, HomeWork, Record
 from .keyboards import student_action_keyboard
-from .structures import TypeHwData
+from .structures import TypeHwData, Role
     
 
 student_router = Router()
@@ -19,16 +19,23 @@ student_router = Router()
     F.text == "Ученик",
     StudentActions.waiting_for_select_role,
 )
-async def student_menu(message: Message, state: FSMContext):
-    await state.update_data(role="ученик")
-    await message.answer(
-        text="Выберите дейтвие:", 
-        reply_markup=ReplyKeyboardMarkup(
-            keyboard=student_action_keyboard,
-            resize_keyboard=True
-        )
-    )
-    await state.set_state(StudentActions.student_waiting_for_text_action)
+async def student_menu(message: Message, state: FSMContext, session_maker: sessionmaker):
+    async with session_maker.begin() as session:
+        qs = await session.scalars(select(User).where(User.user_id == message.from_user.id))
+        user = qs.first()
+        if not user:
+            await message.answer(text="Вас нет в базе учеников, обратитесь к своему преподавателю")
+        elif user.coach_id == None:
+            await message.answer(text="Вы не являетесь учеником.")
+        else:
+            await message.answer(
+                text="Выберите дейтвие:", 
+                reply_markup=ReplyKeyboardMarkup(
+                    keyboard=student_action_keyboard,
+                    resize_keyboard=True
+                )
+            )
+            await state.set_state(StudentActions.student_waiting_for_text_action)
 
 
 @student_router.message(
