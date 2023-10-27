@@ -15,6 +15,7 @@ class CoachActions(Actions):
     waiting_for_select_student = State()
     waiting_for_upload_record = State()
     waiting_for_topic_record = State()
+    waiting_for_nick_to_delete = State()
 
 #состояния ученика
 class StudentActions(Actions):

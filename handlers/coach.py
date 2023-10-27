@@ -14,7 +14,7 @@ from db import User, HomeWork, Record
 from .keyboards import coach_action_keyboard, cancel_keyboard
 from .structures import Role, TypeHwData
 from .start_comand import cmd_cancel
-    
+
 
 coach_router = Router()
 
@@ -216,6 +216,57 @@ async def coach_add_student(message: Message, state: FSMContext, session_maker: 
                 reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard, resize_keyboard=True)
             )
         await state.set_state(CoachActions.waiting_for_text_action)
+
+
+@coach_router.message(
+    F.text == "Удалить ученика",
+    CoachActions.waiting_for_text_action,
+)
+async def coach_select_nick_to_delete(message: Message, state: FSMContext, session_maker: sessionmaker):
+    students_kb = []
+    async with session_maker.begin() as session:
+        students_qs = await session.scalars(select(User).where(User.coach_id == message.from_user.id))
+        for student in students_qs:
+            students_kb.append([KeyboardButton(text=student.username)])
+    students_kb.append([KeyboardButton(text="Отменить действие")])
+    await message.answer(
+        text="Выберете ученика:",
+        reply_markup=ReplyKeyboardMarkup(keyboard=students_kb, resize_keyboard=True)
+    )
+    await state.set_state(CoachActions.waiting_for_nick_to_delete)
+
+
+@coach_router.message(
+    F.text == "Отменить действие", 
+    CoachActions.waiting_for_nick_to_delete
+)
+async def stop_delete(message: Message, state: FSMContext):
+    await cancel(message, state)
+
+
+@coach_router.message(
+    CoachActions.waiting_for_nick_to_delete
+)
+async def delete_student(message: Message, state: FSMContext, session_maker: sessionmaker):
+    async with session_maker.begin() as session:
+        delete_user = (await session.scalars(select(User).where(User.username == message.text))).first()
+        if delete_user is not None:
+            await session.delete(delete_user)
+            await message.answer(
+                text="Ученик удалён", 
+                reply_markup=ReplyKeyboardMarkup(
+                    keyboard=coach_action_keyboard, resize_keyboard=True
+                )
+            )
+            await state.set_state(CoachActions.waiting_for_text_action)
+        else:
+            await message.answer(
+                text="У вас нет такого ученика!", 
+                reply_markup=ReplyKeyboardMarkup(
+                    keyboard=coach_action_keyboard, resize_keyboard=True
+                )
+            )
+            await state.set_state(CoachActions.waiting_for_text_action)
 
 
 @coach_router.message(
