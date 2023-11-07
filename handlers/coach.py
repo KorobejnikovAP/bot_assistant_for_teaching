@@ -19,6 +19,9 @@ from .start_comand import cmd_cancel
 coach_router = Router()
 
 
+"""
+Входная точка для преподавателя
+"""
 @coach_router.message(
     F.text == "Преподаватель",
     CoachActions.waiting_for_select_role,
@@ -36,102 +39,15 @@ async def coach_menu(message: Message, state: FSMContext, session_maker: session
     await message.answer(text="Выберите дейтвие:", reply_markup=keyboard) 
     await state.update_data(role="преподаватель")
     await state.set_state(CoachActions.waiting_for_text_action)
+"""
+Конец входной точки для преподавателя
+"""
 
+ 
 
-@coach_router.message(
-    F.text == "Добавить конспект",
-    CoachActions.waiting_for_text_action,
-)
-async def start_add_record(message: Message, state: FSMContext, session_maker: sessionmaker):
-    async with session_maker.begin() as session:
-        qs = await session.scalars(select(User).where(User.coach_id == message.from_user.id))
-        student_list = [student.username for student in qs.all()]
-    ans = "Выберете ученика:"
-    kb = [[KeyboardButton(text=f"{student}")] for student in student_list]
-    kb.append([KeyboardButton(text="Отменить действие")])
-    await message.answer(text=ans, reply_markup=ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True))
-    await state.set_state(CoachActions.waiting_for_select_student)
-
-
-@coach_router.message(
-    F.text == "Отменить действие",
-    CoachActions.waiting_for_select_student
-)
-async def return_to_select_action(message: Message, state: FSMContext):
-    await cancel(message, state)
-
-
-@coach_router.message(
-    CoachActions.waiting_for_select_student
-)
-async def select_student(message: Message, state: FSMContext, session_maker: sessionmaker):
-    async with session_maker.begin() as session:
-        qs = await session.scalars(select(User).where(User.username == message.text))
-        student = qs.first()
-        if student:
-            await state.update_data(student_id=student.user_id)
-            await state.set_state(CoachActions.waiting_for_topic_record)
-            await message.answer(
-                text="Напишите название конспекта",
-                reply_markup=ReplyKeyboardMarkup(keyboard=cancel_keyboard, resize_keyboard=True),
-            )
-        else:
-            await message.answer(text="Ошибка, ученик не найден.")
-
-
-@coach_router.message(
-    F.text == "Отменить действие",
-    CoachActions.waiting_for_topic_record
-)
-async def return_to_select_action(message: Message, state: FSMContext):
-    await cancel(message, state)
-
-
-@coach_router.message(
-    F.text[0] != "/", 
-    CoachActions.waiting_for_topic_record
-)
-async def write_topic_for_record(message: Message, state: FSMContext):
-    await state.update_data(topic=message.text)
-    await state.set_state(CoachActions.waiting_for_upload_record)
-    await message.answer(text="Загрузите файл с конспектом в формате .png")
-
-
-@coach_router.message(
-    F.text == "Отменить действие",
-    CoachActions.waiting_for_upload_record
-)
-async def return_to_select_action(message: Message, state: FSMContext):
-    await cancel(message, state)
-
-
-@coach_router.message(
-    CoachActions.waiting_for_upload_record
-)
-async def upload_record(message: Message, state: FSMContext, session_maker: sessionmaker, bot: Bot):
-    if message.document: 
-        file_id = message.document.file_id
-        file = await bot.get_file(file_id)
-        file_path = file.file_path
-        new_data = (await bot.download_file(file_path)).read()
-    state_data = await state.get_data()
-    new_record = Record(
-        author_id=message.from_user.id,
-        student_id=state_data["student_id"],
-        topic=state_data["topic"],
-        data = new_data
-    )    
-    async with session_maker.begin() as sesison:
-        try:
-            sesison.add(new_record)
-            await message.answer(
-                text="Конспект загружен", 
-                reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard, resize_keyboard=True)
-            )
-            await state.set_state(CoachActions.waiting_for_text_action)
-        except:
-            await message.answer(text="Что-то пошло не так(")
-
+"""
+Выгрузика полного списка домашних заданий
+"""
 @coach_router.message(
     F.text == "Посмотреть список д.з",
     CoachActions.waiting_for_text_action,
@@ -147,128 +63,15 @@ async def homework_list(message: Message, state: FSMContext, session_maker: sess
         else:
             ans = "У вас нет домашних заданий!"
         await message.answer(text=ans)
+"""
+Конец выгрузки полного списка домашних заданий 
+"""
 
 
-@coach_router.message(
-    F.text == "Добавить ученика",
-    CoachActions.waiting_for_text_action,
-)
-async def coach_write_nick(message: Message, state: FSMContext):
-    await message.answer(
-        text="Укажите никнейм ученика в телеграмме \n в формате @username:",
-        reply_markup=ReplyKeyboardMarkup(keyboard=cancel_keyboard, resize_keyboard=True)
-    )
-    await state.set_state(CoachActions.waiting_for_nick)
 
-
-@coach_router.message(
-    F.text == "Отменить действие", 
-    CoachActions.waiting_for_nick
-)
-async def return_to_select_action(message: Message, state: FSMContext):
-    await cancel(message, state)
-
-
-@coach_router.message(
-    F.text[0] != '/',
-    CoachActions.waiting_for_nick
-)
-async def coach_add_student(message: Message, state: FSMContext, session_maker: sessionmaker):
-    username = message.text
-    client = await TelegramClient(
-        'bot',
-        config.api_id.get_secret_value(),
-        config.api_hash.get_secret_value()
-    ).start(bot_token=config.bot_token.get_secret_value())
-    
-    async with client as session:
-        user = await session(GetFullUserRequest(username))
-
-    new_user = User(
-                user_id = user.full_user.id,
-                username = username,
-                coach_id = message.from_user.id
-            )
-
-    async with session_maker.begin() as session:
-        qs = await session.scalars(select(User).where(User.user_id == new_user.user_id))
-        check_user = qs.first()
-        if not check_user:
-            session.add(new_user)
-            await message.answer(
-                text="Вы добавили ученика", 
-                reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard, resize_keyboard=True)
-            )
-        elif check_user.coach_id == None:
-            await message.answer(
-                text="Вы добавили ученика",
-                reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard, resize_keyboard=True)
-            )
-            await session.execute(
-                update(User)
-                .where(User.user_id == user.full_user.id)
-                .values(coach_id=message.from_user.id)
-                .execution_options(synchronize_session=None)
-            )
-        else:
-            await message.answer(
-                text="У этого ученика уже есть учитель!",
-                reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard, resize_keyboard=True)
-            )
-        await state.set_state(CoachActions.waiting_for_text_action)
-
-
-@coach_router.message(
-    F.text == "Удалить ученика",
-    CoachActions.waiting_for_text_action,
-)
-async def coach_select_nick_to_delete(message: Message, state: FSMContext, session_maker: sessionmaker):
-    students_kb = []
-    async with session_maker.begin() as session:
-        students_qs = await session.scalars(select(User).where(User.coach_id == message.from_user.id))
-        for student in students_qs:
-            students_kb.append([KeyboardButton(text=student.username)])
-    students_kb.append([KeyboardButton(text="Отменить действие")])
-    await message.answer(
-        text="Выберете ученика:",
-        reply_markup=ReplyKeyboardMarkup(keyboard=students_kb, resize_keyboard=True)
-    )
-    await state.set_state(CoachActions.waiting_for_nick_to_delete)
-
-
-@coach_router.message(
-    F.text == "Отменить действие", 
-    CoachActions.waiting_for_nick_to_delete
-)
-async def stop_delete(message: Message, state: FSMContext):
-    await cancel(message, state)
-
-
-@coach_router.message(
-    CoachActions.waiting_for_nick_to_delete
-)
-async def delete_student(message: Message, state: FSMContext, session_maker: sessionmaker):
-    async with session_maker.begin() as session:
-        delete_user = (await session.scalars(select(User).where(User.username == message.text))).first()
-        if delete_user is not None:
-            await session.delete(delete_user)
-            await message.answer(
-                text="Ученик удалён", 
-                reply_markup=ReplyKeyboardMarkup(
-                    keyboard=coach_action_keyboard, resize_keyboard=True
-                )
-            )
-            await state.set_state(CoachActions.waiting_for_text_action)
-        else:
-            await message.answer(
-                text="У вас нет такого ученика!", 
-                reply_markup=ReplyKeyboardMarkup(
-                    keyboard=coach_action_keyboard, resize_keyboard=True
-                )
-            )
-            await state.set_state(CoachActions.waiting_for_text_action)
-
-
+"""
+Добавление домашнего задания
+"""
 @coach_router.message(
     F.text == "Добавить новое д.з",
     CoachActions.waiting_for_text_action,
@@ -363,6 +166,245 @@ async def coach_end_upload_hw(message: Message, state: FSMContext, session_maker
         text="Вы загрузили домашку",
         reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard, resize_keyboard=True)
     )
+"""
+Конец добавления домашнего задания
+"""
+
+
+
+"""
+Добавление конспекта для ученика
+"""
+@coach_router.message(
+    F.text == "Добавить конспект",
+    CoachActions.waiting_for_text_action,
+)
+async def start_add_record(message: Message, state: FSMContext, session_maker: sessionmaker):
+    async with session_maker.begin() as session:
+        qs = await session.scalars(select(User).where(User.coach_id == message.from_user.id))
+        student_list = [student.username for student in qs.all()]
+    ans = "Выберете ученика:"
+    kb = [[KeyboardButton(text=f"{student}")] for student in student_list]
+    kb.append([KeyboardButton(text="Отменить действие")])
+    await message.answer(text=ans, reply_markup=ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True))
+    await state.set_state(CoachActions.waiting_for_select_student)
+
+
+@coach_router.message(
+    F.text == "Отменить действие",
+    CoachActions.waiting_for_select_student
+)
+async def return_to_select_action(message: Message, state: FSMContext):
+    await cancel(message, state)
+
+
+@coach_router.message(
+    CoachActions.waiting_for_select_student
+)
+async def select_student(message: Message, state: FSMContext, session_maker: sessionmaker):
+    async with session_maker.begin() as session:
+        qs = await session.scalars(select(User).where(User.username == message.text))
+        student = qs.first()
+        if student:
+            await state.update_data(student_id=student.user_id)
+            await state.set_state(CoachActions.waiting_for_topic_record)
+            await message.answer(
+                text="Напишите название конспекта",
+                reply_markup=ReplyKeyboardMarkup(keyboard=cancel_keyboard, resize_keyboard=True),
+            )
+        else:
+            await message.answer(text="Ошибка, ученик не найден.")
+
+
+@coach_router.message(
+    F.text == "Отменить действие",
+    CoachActions.waiting_for_topic_record
+)
+async def return_to_select_action(message: Message, state: FSMContext):
+    await cancel(message, state)
+
+
+@coach_router.message(
+    F.text[0] != "/", 
+    CoachActions.waiting_for_topic_record
+)
+async def write_topic_for_record(message: Message, state: FSMContext):
+    await state.update_data(topic=message.text)
+    await state.set_state(CoachActions.waiting_for_upload_record)
+    await message.answer(text="Загрузите файл с конспектом в формате .png")
+
+
+@coach_router.message(
+    F.text == "Отменить действие",
+    CoachActions.waiting_for_upload_record
+)
+async def return_to_select_action(message: Message, state: FSMContext):
+    await cancel(message, state)
+
+
+@coach_router.message(
+    CoachActions.waiting_for_upload_record
+)
+async def upload_record(message: Message, state: FSMContext, session_maker: sessionmaker, bot: Bot):
+    if message.document: 
+        file_id = message.document.file_id
+        file = await bot.get_file(file_id)
+        file_path = file.file_path
+        new_data = (await bot.download_file(file_path)).read()
+    state_data = await state.get_data()
+    new_record = Record(
+        author_id=message.from_user.id,
+        student_id=state_data["student_id"],
+        topic=state_data["topic"],
+        data = new_data
+    )    
+    async with session_maker.begin() as sesison:
+        try:
+            sesison.add(new_record)
+            await message.answer(
+                text="Конспект загружен", 
+                reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard, resize_keyboard=True)
+            )
+            await state.set_state(CoachActions.waiting_for_text_action)
+        except:
+            await message.answer(text="Что-то пошло не так(")
+"""
+Конец добавления конспекта для ученика
+"""
+
+
+
+"""
+Добавление ученика
+"""
+@coach_router.message(
+    F.text == "Добавить ученика",
+    CoachActions.waiting_for_text_action,
+)
+async def coach_write_nick(message: Message, state: FSMContext):
+    await message.answer(
+        text="Укажите никнейм ученика в телеграмме \n в формате @username:",
+        reply_markup=ReplyKeyboardMarkup(keyboard=cancel_keyboard, resize_keyboard=True)
+    )
+    await state.set_state(CoachActions.waiting_for_nick)
+
+
+@coach_router.message(
+    F.text == "Отменить действие", 
+    CoachActions.waiting_for_nick
+)
+async def return_to_select_action(message: Message, state: FSMContext):
+    await cancel(message, state)
+
+
+@coach_router.message(
+    F.text[0] != '/',
+    CoachActions.waiting_for_nick
+)
+async def coach_add_student(message: Message, state: FSMContext, session_maker: sessionmaker):
+    username = message.text
+    client = await TelegramClient(
+        'bot',
+        config.api_id.get_secret_value(),
+        config.api_hash.get_secret_value()
+    ).start(bot_token=config.bot_token.get_secret_value())
+    
+    async with client as session:
+        user = await session(GetFullUserRequest(username))
+
+    new_user = User(
+                user_id = user.full_user.id,
+                username = username,
+                coach_id = message.from_user.id
+            )
+
+    async with session_maker.begin() as session:
+        qs = await session.scalars(select(User).where(User.user_id == new_user.user_id))
+        check_user = qs.first()
+        if not check_user:
+            session.add(new_user)
+            await message.answer(
+                text="Вы добавили ученика", 
+                reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard, resize_keyboard=True)
+            )
+        elif check_user.coach_id == None:
+            await message.answer(
+                text="Вы добавили ученика",
+                reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard, resize_keyboard=True)
+            )
+            await session.execute(
+                update(User)
+                .where(User.user_id == user.full_user.id)
+                .values(coach_id=message.from_user.id)
+                .execution_options(synchronize_session=None)
+            )
+        else:
+            await message.answer(
+                text="У этого ученика уже есть учитель!",
+                reply_markup=ReplyKeyboardMarkup(keyboard=coach_action_keyboard, resize_keyboard=True)
+            )
+        await state.set_state(CoachActions.waiting_for_text_action)
+"""
+Конец добавления ученика
+"""
+
+
+
+"""
+Удаление ученика
+"""
+@coach_router.message(
+    F.text == "Удалить ученика",
+    CoachActions.waiting_for_text_action,
+)
+async def coach_select_nick_to_delete(message: Message, state: FSMContext, session_maker: sessionmaker):
+    students_kb = []
+    async with session_maker.begin() as session:
+        students_qs = await session.scalars(select(User).where(User.coach_id == message.from_user.id))
+        for student in students_qs:
+            students_kb.append([KeyboardButton(text=student.username)])
+    students_kb.append([KeyboardButton(text="Отменить действие")])
+    await message.answer(
+        text="Выберете ученика:",
+        reply_markup=ReplyKeyboardMarkup(keyboard=students_kb, resize_keyboard=True)
+    )
+    await state.set_state(CoachActions.waiting_for_nick_to_delete)
+
+
+@coach_router.message(
+    F.text == "Отменить действие", 
+    CoachActions.waiting_for_nick_to_delete
+)
+async def stop_delete(message: Message, state: FSMContext):
+    await cancel(message, state)
+
+
+@coach_router.message(
+    CoachActions.waiting_for_nick_to_delete
+)
+async def delete_student(message: Message, state: FSMContext, session_maker: sessionmaker):
+    async with session_maker.begin() as session:
+        delete_user = (await session.scalars(select(User).where(User.username == message.text))).first()
+        if delete_user is not None:
+            await session.delete(delete_user)
+            await message.answer(
+                text="Ученик удалён", 
+                reply_markup=ReplyKeyboardMarkup(
+                    keyboard=coach_action_keyboard, resize_keyboard=True
+                )
+            )
+            await state.set_state(CoachActions.waiting_for_text_action)
+        else:
+            await message.answer(
+                text="У вас нет такого ученика!", 
+                reply_markup=ReplyKeyboardMarkup(
+                    keyboard=coach_action_keyboard, resize_keyboard=True
+                )
+            )
+            await state.set_state(CoachActions.waiting_for_text_action)
+"""
+Конец удаления ученика
+"""
 
 
 async def cancel(message: Message, state: FSMContext):
