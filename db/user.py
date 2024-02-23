@@ -2,8 +2,8 @@ import datetime
 
 from .base import BaseModel
 from sqlalchemy.types import BigInteger, Integer, VARCHAR, DATE
-from sqlalchemy import Column, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy import Column, ForeignKey, select
+from sqlalchemy.orm import relationship, sessionmaker
 
 class User(BaseModel):
 
@@ -23,6 +23,17 @@ class User(BaseModel):
     homeworks = relationship("HomeWork", back_populates="author")
     reg_date = Column(DATE, default=datetime.date.today())
     upd_date = Column(DATE, onupdate=datetime.date.today())
+
+    """
+    return list usernames 
+    """
+    @classmethod
+    async def get_students_usernames(self, session_maker: sessionmaker, id_coach: int) -> list[str]:
+        async with session_maker.begin() as session:
+            qs = await session.scalars(select(User).where(User.coach_id == id_coach))
+            students_list = [user.username for user in qs.all()]
+        return students_list
+    
 
     def __str__(self) -> str:
         return f"<User:{self.user_id}>"

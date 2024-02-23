@@ -180,11 +180,9 @@ async def coach_end_upload_hw(message: Message, state: FSMContext, session_maker
     CoachActions.waiting_for_text_action,
 )
 async def start_add_record(message: Message, state: FSMContext, session_maker: sessionmaker):
-    async with session_maker.begin() as session:
-        qs = await session.scalars(select(User).where(User.coach_id == message.from_user.id))
-        student_list = [student.username for student in qs.all()]
+    students_list = await User.get_students_usernames(session_maker, message.from_user.id)
     ans = "Выберете ученика:"
-    kb = [[KeyboardButton(text=f"{student}")] for student in student_list]
+    kb = [[KeyboardButton(text=f"{student}")] for student in students_list]
     kb.append([KeyboardButton(text="Отменить действие")])
     await message.answer(text=ans, reply_markup=ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True))
     await state.set_state(CoachActions.waiting_for_select_student)
@@ -272,6 +270,16 @@ async def upload_record(message: Message, state: FSMContext, session_maker: sess
 Конец добавления конспекта для ученика
 """
 
+
+"""
+Посмотреть конспекты ученика
+"""
+@coach_router.message(
+    F.text == "Посмотреть конспекты", 
+    CoachActions.waiting_for_text_action
+)
+async def start_check_records():
+    pass
 
 
 """

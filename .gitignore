@@ -5,3 +5,4 @@ __pycache__
 *.jpg
 *.session
 test.py
+alembic.ini
