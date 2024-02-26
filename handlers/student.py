@@ -54,6 +54,7 @@ async def student_records(message: Message, state: FSMContext, session_maker: se
     async with session_maker.begin() as session:
         qs = await session.scalars(select(Record).where(Record.student_id == message.from_user.id))
         records = [record.topic for record in qs.all()]
+    records.sort()
     kb = [[KeyboardButton(text=f"{i}")] for i in records]
     kb.append([KeyboardButton(text=_cancel)])
     await message.answer(
