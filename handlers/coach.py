@@ -185,23 +185,13 @@ async def select_student(message: Message, state: FSMContext, session_maker: ses
         student = qs.first()
         if student:
             await state.update_data(student_id=student.user_id)
-            await state.set_state(CoachActions.waiting_for_topic_record)
+            await state.set_state(CoachActions.waiting_for_upload_record)
             await message.answer(
-                text="Напишите название конспекта",
+                text="Загрузите файл с конспектом в формате .png",
                 reply_markup=ReplyKeyboardMarkup(keyboard=cancel_keyboard, resize_keyboard=True),
             )
         else:
             await message.answer(text="Ошибка, ученик не найден.")
-
-
-@coach_router.message(
-    F.text != _cancel, 
-    CoachActions.waiting_for_topic_record
-)
-async def write_topic_for_record(message: Message, state: FSMContext):
-    await state.update_data(topic=message.text)
-    await state.set_state(CoachActions.waiting_for_upload_record)
-    await message.answer(text="Загрузите файл с конспектом в формате .png")
 
 
 @coach_router.message(
@@ -211,6 +201,7 @@ async def write_topic_for_record(message: Message, state: FSMContext):
 async def upload_record(message: Message, state: FSMContext, session_maker: sessionmaker, bot: Bot):
     if message.document: 
         file_id = message.document.file_id
+        file_name = message.document.file_name
         file = await bot.get_file(file_id)
         file_path = file.file_path
         new_data = (await bot.download_file(file_path)).read()
@@ -218,7 +209,7 @@ async def upload_record(message: Message, state: FSMContext, session_maker: sess
     new_record = Record(
         author_id=message.from_user.id,
         student_id=state_data["student_id"],
-        topic=state_data["topic"],
+        topic=file_name,
         data = new_data
     )    
     async with session_maker.begin() as sesison:
