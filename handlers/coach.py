@@ -12,7 +12,7 @@ from config_reader import config
 
 from sqlalchemy import select, update
 from db import User, HomeWork, Record
-from .keyboards import coach_action_keyboard, cancel_keyboard
+from .keyboards import coach_action_keyboard, cancel_keyboard, _cancel
 from .structures import Role, TypeHwData
 from .start_comand import cmd_cancel
 
@@ -86,7 +86,7 @@ async def coach_write_topic(message: Message, state: FSMContext):
 
 
 @coach_router.message(
-    F.text != "Отменить действие",
+    F.text != _cancel,
     CoachActions.waiting_for_topic,
 )
 async def coach_write_description(message: Message, state: FSMContext, session_maker: sessionmaker):
@@ -96,7 +96,7 @@ async def coach_write_description(message: Message, state: FSMContext, session_m
 
 
 @coach_router.message(
-    F.text != "Отменить действие",
+    F.text != _cancel,
     CoachActions.waiting_for_description,
 )
 async def coach_upload_file(message: Message, state: FSMContext, session_maker: sessionmaker):
@@ -167,7 +167,7 @@ async def start_add_record(message: Message, state: FSMContext, session_maker: s
     students_list = await User.get_students_usernames(session_maker, message.from_user.id)
     ans = "Выберете ученика:"
     kb = [[KeyboardButton(text=f"{student.username}")] for student in students_list]
-    kb.append([KeyboardButton(text="Отменить действие")])
+    kb.append([KeyboardButton(text=_cancel)])
     await message.answer(
         text=ans,
         reply_markup=ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
@@ -176,7 +176,7 @@ async def start_add_record(message: Message, state: FSMContext, session_maker: s
 
 
 @coach_router.message(
-    F.text != "Отменить действие", 
+    F.text != _cancel, 
     CoachActions.waiting_for_select_student
 )
 async def select_student(message: Message, state: FSMContext, session_maker: sessionmaker):
@@ -195,7 +195,7 @@ async def select_student(message: Message, state: FSMContext, session_maker: ses
 
 
 @coach_router.message(
-    F.text != "Отменить действие", 
+    F.text != _cancel, 
     CoachActions.waiting_for_topic_record
 )
 async def write_topic_for_record(message: Message, state: FSMContext):
@@ -205,7 +205,7 @@ async def write_topic_for_record(message: Message, state: FSMContext):
 
 
 @coach_router.message(
-    F.text != "Отменить действие", 
+    F.text != _cancel, 
     CoachActions.waiting_for_upload_record
 )
 async def upload_record(message: Message, state: FSMContext, session_maker: sessionmaker, bot: Bot):
@@ -271,7 +271,7 @@ async def coach_write_nick(message: Message, state: FSMContext):
 
 
 @coach_router.message(
-    F.text != 'Отменить действие',
+    F.text != _cancel,
     CoachActions.waiting_for_nick
 )
 async def coach_add_student(message: Message, state: FSMContext, session_maker: sessionmaker):
@@ -342,7 +342,7 @@ async def coach_select_nick_to_delete(message: Message, state: FSMContext, sessi
         students_qs = await session.scalars(select(User).where(User.coach_id == message.from_user.id))
         for student in students_qs:
             students_kb.append([KeyboardButton(text=student.username)])
-    students_kb.append([KeyboardButton(text="Отменить действие")])
+    students_kb.append([KeyboardButton(text=_cancel)])
     await message.answer(
         text="Выберете ученика:",
         reply_markup=ReplyKeyboardMarkup(keyboard=students_kb, resize_keyboard=True)
@@ -351,7 +351,7 @@ async def coach_select_nick_to_delete(message: Message, state: FSMContext, sessi
 
 
 @coach_router.message(
-    F.text != "Отменить действие",
+    F.text != _cancel,
     CoachActions.waiting_for_nick_to_delete
 )
 async def delete_student(message: Message, state: FSMContext, session_maker: sessionmaker):

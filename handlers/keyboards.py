@@ -1,5 +1,7 @@
 from aiogram.types import Message, KeyboardButton, ReplyKeyboardMarkup
 
+_cancel = "Отменить действие"
+
 role_keyboard = [
         [KeyboardButton(text="Администратор")],
         [KeyboardButton(text="Преподаватель")],
@@ -25,5 +27,5 @@ student_action_keyboard = [
     ]
 
 cancel_keyboard = [
-    [KeyboardButton(text="Отменить действие")]
+    [KeyboardButton(text=_cancel)]
 ]

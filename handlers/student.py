@@ -8,13 +8,14 @@ from config_reader import config
 
 from sqlalchemy import select, update
 from db import User, HomeWork, Record
-from .keyboards import student_action_keyboard
+from .keyboards import student_action_keyboard, _cancel
 from .structures import TypeHwData, Role
     
 
 student_router = Router()
 
 
+"""Входная точка для ученика"""
 @student_router.message(
     F.text == "Ученик",
     StudentActions.waiting_for_select_role,
@@ -36,8 +37,15 @@ async def student_menu(message: Message, state: FSMContext, session_maker: sessi
                 )
             )
             await state.set_state(StudentActions.student_waiting_for_text_action)
+"""
+Конец входной точки для ученика
+"""
 
 
+
+"""
+Просмотр конспекта
+"""
 @student_router.message(
     F.text == "Посмотреть конспект", 
     StudentActions.student_waiting_for_text_action
@@ -47,7 +55,7 @@ async def student_records(message: Message, state: FSMContext, session_maker: se
         qs = await session.scalars(select(Record).where(Record.student_id == message.from_user.id))
         records = [record.topic for record in qs.all()]
     kb = [[KeyboardButton(text=f"{i}")] for i in records]
-    kb.append([KeyboardButton(text="Отменить действие")])
+    kb.append([KeyboardButton(text=_cancel)])
     await message.answer(
         text="Выбырете конспект", 
         reply_markup=ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
@@ -56,14 +64,7 @@ async def student_records(message: Message, state: FSMContext, session_maker: se
 
 
 @student_router.message(
-    F.text == "Отменить действие",
-    StudentActions.student_waiting_for_select_record
-)
-async def stop_action(message: Message, state: FSMContext):
-    await stop(message, state)
-
-
-@student_router.message(
+    F.text != _cancel,
     StudentActions.student_waiting_for_select_record
 )
 async def select_record(message: Message, state: FSMContext, session_maker: sessionmaker):
@@ -79,6 +80,19 @@ async def select_record(message: Message, state: FSMContext, session_maker: sess
         await state.set_state(StudentActions.student_waiting_for_text_action)
 
 
+@student_router.message(StudentActions.student_waiting_for_select_record)
+async def stop_action(message: Message, state: FSMContext):
+    await cancel(message, state)
+
+"""
+Конец просмотра конспекта
+"""
+
+
+
+"""
+Просмотр домашнего задания
+"""
 @student_router.message(
     F.text == "Получить д.з",
     StudentActions.student_waiting_for_text_action
@@ -89,7 +103,7 @@ async def student_select_action(message: Message, state: FSMContext, session_mak
         homeworks_qs = await session.scalars(select(HomeWork).where(HomeWork.author_id == user.coach_id))
         homeworks_list = [hw.topic for hw in homeworks_qs.all()]
     kb = [[KeyboardButton(text=hw)] for hw in homeworks_list]
-    kb.append([KeyboardButton(text="Отменить действие")])
+    kb.append([KeyboardButton(text=_cancel)])
     await message.answer(
         text="Выберете тему:",
         reply_markup=ReplyKeyboardMarkup(keyboard=kb, resize_keyboard=True)
@@ -98,15 +112,7 @@ async def student_select_action(message: Message, state: FSMContext, session_mak
 
 
 @student_router.message(
-    F.text == "Отменить действие",
-    StudentActions.student_waiting_for_select_theme
-)
-async def stop_action(message: Message, state: FSMContext):
-    await stop(message, state)
-
-
-@student_router.message(
-    F.text[0] != '/',
+    F.text != _cancel,
     StudentActions.student_waiting_for_select_theme
 )
 async def student_select_theme(message: Message, state: FSMContext, session_maker: sessionmaker): 
@@ -125,7 +131,17 @@ async def student_select_theme(message: Message, state: FSMContext, session_make
         await state.set_state(StudentActions.student_waiting_for_text_action)
 
 
-async def stop(message: Message, state: FSMContext):
+@student_router.message(StudentActions.student_waiting_for_select_theme)
+async def stop_action(message: Message, state: FSMContext):
+    await cancel(message, state)
+
+"""
+Конец просмотра домашнего задания
+"""
+
+
+
+async def cancel(message: Message, state: FSMContext):
     await message.answer(
         text="Действие отменено",
         reply_markup=ReplyKeyboardMarkup(keyboard=student_action_keyboard, resize_keyboard=True)
