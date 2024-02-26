@@ -209,7 +209,7 @@ async def upload_record(message: Message, state: FSMContext, session_maker: sess
     new_record = Record(
         author_id=message.from_user.id,
         student_id=state_data["student_id"],
-        topic=file_name,
+        topic=file_name[:file_name.rindex('.')],
         data = new_data
     )    
     async with session_maker.begin() as sesison:
