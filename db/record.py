@@ -3,7 +3,7 @@ from sqlalchemy.dialects.postgresql import BYTEA
 from sqlalchemy import Column, ForeignKey
 from sqlalchemy.orm import relationship
 from .base import BaseModel
-from .user import User
+
 
 class Record(BaseModel):
 

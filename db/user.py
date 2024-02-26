@@ -1,6 +1,7 @@
 import datetime
 
 from .base import BaseModel
+from .record import Record
 from sqlalchemy.types import BigInteger, Integer, VARCHAR, DATE
 from sqlalchemy import Column, ForeignKey, select
 from sqlalchemy.orm import relationship, sessionmaker
@@ -28,12 +29,20 @@ class User(BaseModel):
     return list usernames 
     """
     @classmethod
-    async def get_students_usernames(self, session_maker: sessionmaker, id_coach: int) -> list[str]:
+    async def get_students_usernames(self, session_maker: sessionmaker, id_coach: int):
         async with session_maker.begin() as session:
             qs = await session.scalars(select(User).where(User.coach_id == id_coach))
-            students_list = [user.username for user in qs.all()]
-        return students_list
+            session.expunge_all()
+        return qs
     
+
+    @classmethod
+    async def get_student_records(self, session_maker: sessionmaker, id_student: int):
+        async with session_maker.begin() as session:
+            records = (await session.scalars(select(Record).where(Record.student_id==id_student)))
+            session.expunge_all()
+        return records
+            
 
     def __str__(self) -> str:
         return f"<User:{self.user_id}>"
