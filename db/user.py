@@ -35,14 +35,5 @@ class User(BaseModel):
             session.expunge_all()
         return qs
     
-
-    @classmethod
-    async def get_student_records(self, session_maker: sessionmaker, id_student: int):
-        async with session_maker.begin() as session:
-            records = (await session.scalars(select(Record).where(Record.student_id==id_student)))
-            session.expunge_all()
-        return records
-            
-
     def __str__(self) -> str:
         return f"<User:{self.user_id}>"

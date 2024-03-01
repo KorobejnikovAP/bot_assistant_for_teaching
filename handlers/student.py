@@ -51,11 +51,10 @@ async def student_menu(message: Message, state: FSMContext, session_maker: sessi
     StudentActions.student_waiting_for_text_action
 )
 async def student_records(message: Message, state: FSMContext, session_maker: sessionmaker):
-    async with session_maker.begin() as session:
-        qs = await session.scalars(select(Record).where(Record.student_id == message.from_user.id))
-        records = [record.topic for record in qs.all()]
-    records.sort()
-    kb = [[KeyboardButton(text=f"{i}")] for i in records]
+    records = await Record.get_student_records(session_maker, message.from_user.id)
+    records_name = [record.topic for record in records]
+    records_name.sort(key=lambda x: int(x[:x.index('.')]))
+    kb = [[KeyboardButton(text=f"{i}")] for i in records_name]
     kb.append([KeyboardButton(text=_cancel)])
     await message.answer(
         text="Выбырете конспект", 
