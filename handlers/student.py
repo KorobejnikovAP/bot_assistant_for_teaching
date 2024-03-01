@@ -53,7 +53,7 @@ async def student_menu(message: Message, state: FSMContext, session_maker: sessi
 async def student_records(message: Message, state: FSMContext, session_maker: sessionmaker):
     records = await Record.get_student_records(session_maker, message.from_user.id)
     records_name = [record.topic for record in records]
-    records_name.sort(key=lambda x: int(x[:x.index('.')]))
+    records_name.sort(key=lambda x: int(x[:max(x.find('.'), x.find('_'))]))
     kb = [[KeyboardButton(text=f"{i}")] for i in records_name]
     kb.append([KeyboardButton(text=_cancel)])
     await message.answer(
