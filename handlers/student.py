@@ -51,9 +51,19 @@ async def student_menu(message: Message, state: FSMContext, session_maker: sessi
     StudentActions.student_waiting_for_text_action
 )
 async def student_records(message: Message, state: FSMContext, session_maker: sessionmaker):
+
+    def number_comparator(item: str):
+        res = ''
+        for i in item:
+            if '0' <= i <= '9':
+                res += i
+            else:
+                break
+        return int(res)
+
     records = await Record.get_student_records(session_maker, message.from_user.id)
     records_name = [record.topic for record in records]
-    records_name.sort(key=lambda x: int(x[:max(x.find('.'), x.find('_'))]))
+    records_name.sort(key=number_comparator)
     kb = [[KeyboardButton(text=f"{i}")] for i in records_name]
     kb.append([KeyboardButton(text=_cancel)])
     await message.answer(
